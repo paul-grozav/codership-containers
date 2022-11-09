@@ -1,0 +1,15 @@
+[Codership-Galera]
+name = Codership Galera Repo
+baseurl = http://releases.galeracluster.com/galera-4/redhat/8/x86_64/
+gpgkey  = http://releases.galeracluster.com/GPG-KEY-galeracluster.com
+gpgcheck = 1
+enable = 1
+module_hotfixes=true
+
+[Codership-MySQL]
+name = Codership MySQL Repo
+baseurl = http://releases.galeracluster.com/mysql-wsrep-8.0/redhat/8/x86_64/
+gpgkey  = http://releases.galeracluster.com/GPG-KEY-galeracluster.com
+gpgcheck = 1
+enable = 1
+module_hotfixes=true
