@@ -21,6 +21,7 @@ RUN rpm -e --nodeps mysql-wsrep-client mysql-wsrep-client-plugins; \
 
 # Config files
 ADD entrypoint.sh /
+ADD codership.cnf /etc/my.cnf.d/
 RUN echo '!includedir /etc/my.cnf.d/' >> /etc/my.cnf;
 
 USER mysql
