@@ -33,7 +33,7 @@ RUN gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F8
 # Config files
 RUN mkdir /codership-initdb.d
 ADD codership-entrypoint.sh /
-ADD codership.cnf /etc/my.cnf.d/
+ADD galera.cnf /etc/my.cnf.d/
 RUN echo '!includedir /etc/my.cnf.d/' >> /etc/my.cnf;
 
 USER mysql
