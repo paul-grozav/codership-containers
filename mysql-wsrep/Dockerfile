@@ -38,6 +38,6 @@ RUN echo '!includedir /etc/my.cnf.d/' >> /etc/my.cnf;
 
 USER mysql
 VOLUME [/var/lib/mysql /var/log/mysql]
-ENTRYPOINT ["/galera-entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]
 EXPOSE 3306/tcp 33060/tcp 4567/tcp 4568/tcp
 CMD ["mysqld"]
