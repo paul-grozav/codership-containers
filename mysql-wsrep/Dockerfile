@@ -1,19 +1,27 @@
 FROM rockylinux:8-minimal
+#FROM redhat/ubi8-minimal - RedHat does not know about epel
 
 LABEL org.opencontainers.image.authors="info@galeracluster.com"
 
-ARG MYSQL_VERSION=8.0.30-26.11
+ARG MYSQL_VERSION=8.0.34-26.15
 ARG OS_VERSION=el8
 ARG GOSU_VERSION=1.16
 
 ADD *.repo /etc/yum.repos.d
 
-RUN rpm --import http://releases.galeracluster.com/GPG-KEY-galeracluster.com; \
-  microdnf -y install epel-release; \
-  microdnf -y install galera-4 mysql-wsrep-server-${MYSQL_VERSION}.${OS_VERSION}
+#  microdnf -y install epel-release; \
+RUN \
+  rpm --import http://releases.galeracluster.com/GPG-KEY-galeracluster.com; \
+  microdnf -y install \
+  findutils \
+  tzdata \
+  galera-4 \
+  mysql-wsrep-server-${MYSQL_VERSION}.${OS_VERSION}
+#pwmake libpwquality-tools \
 
 # Cleanup & create
-RUN rpm -e --nodeps mysql-wsrep-client mysql-wsrep-client-plugins; \
+#rpm -e --nodeps mysql-wsrep-client mysql-wsrep-client-plugins; \
+RUN \
   microdnf clean all; \
   rm -rf /var/cache/dnf /var/cache/yum /usr/lib/.build-id; \
   rm -rf /var/cache/dnf /var/cache/yum /var/lib/mysql; \
@@ -29,11 +37,10 @@ RUN gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F8
     && rm -fr /root/.gnupg/ \
     && chmod +x /usr/local/bin/gosu
 
-
 # Config files
 RUN mkdir /codership-initdb.d
-ADD codership-entrypoint.sh /
-ADD galera.cnf /etc/my.cnf.d/
+ADD entrypoint.sh /
+ADD wsrep.cnf /etc/my.cnf.d/
 RUN echo '!includedir /etc/my.cnf.d/' >> /etc/my.cnf;
 
 USER mysql
