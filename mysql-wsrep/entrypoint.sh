@@ -9,8 +9,9 @@
 # MYSQL_INITDB_SKIP_TZINFO
 # MYSQL_ROOT_HOST
 # PRODUCT
+# WSREP_JOIN - a list of node addresses to join in a cluster
 #
-set -euo pipefail
+set -euxo pipefail
 #
 [[ ${IMAGEDEBUG:-0} -eq 1 ]] && set -x
 #
@@ -86,10 +87,26 @@ get_cfg_value() {
 }
 #
 start_server() {
-  exec "$@" 2>&1
+  echo "Starting '$@'"
+  # start the process and in case of error dump significant
+  # part of error log to stderr for quicker debugging
+  exec "$@" 2>&1 || tail -n1024 -f ${LOG_ERROR} 1>&2
 }
+#
+message "Preparing ${PRODUCT}..."
+#
+message "Searching for custom MYSQL_CMD configs in ${INITDBDIR}..."
+CFGS=$(find "${INITDBDIR}" -name '*.cnf')
+if [[ -n "${CFGS}" ]]; then
+  cp -vf "${CFGS}" /etc/mysql/conf.d/
+fi
+#
+message "Validating configuration..."
+validate_cfg "${@}"
+#
 #################################################
-# If database is initialized - recover position #
+# If database is initialized and we are to join #
+# an existing cluster - recover position        #
 #################################################
 ################################################# 
 # If we are joining a cluster then skip         #
@@ -97,14 +114,19 @@ start_server() {
 # be getting SST anyways                        #
 #################################################
 if [[ -n ${WSREP_JOIN:=} || -f ${INIT_MARKER} ]]; then
-  if [[ -f ${INIT_MARKER} ]]; then
-    WSREP_POSITION_OPTION=$(wsrep_recover)
-    set -- "$@" "${WSREP_POSITION_OPTION}"
+  if [[ -n ${WSREP_JOIN} ]]; then
+    set -- "$@" "--wsrep-cluster-address=gcomm://${WSREP_JOIN}"
+    if [[ -f ${INIT_MARKER} ]]; then
+      find /usr -name 'wsrep_recover'
+      WSREP_POSITION_OPTION=$(wsrep_recover)
+      set -- "$@" "${WSREP_POSITION_OPTION}"
+    fi
+  else
+    set -- "$@" "--wsrep-new-cluster"
   fi
   start_server "$@"
   exit ${?}
 fi
-
 ################################################
 # Need to initialize the database before start #
 ################################################
@@ -115,38 +137,24 @@ if [[ -z "${MYSQL_ROOT_PASSWORD}" && -z "${MYSQL_ALLOW_EMPTY_PASSWORD:=}" && -z 
 	exit 1
 fi
 #
-message "Preparing ${PRODUCT}..."
-#
-message "Searching for custom MYSQL_CMD configs in ${INITDBDIR}..."
-CFGS=$(find "${INITDBDIR}" -name '*.cnf')
-if [[ -n "${CFGS}" ]]; then
-  cp -vf "${CFGS}" /etc/my.cnf.d/
-fi
-#
 DATADIR="$(get_cfg_value 'datadir' "$@")"
 if [[ ! -d "${DATADIR}/${MYSQL_DB}" ]]; then
 	rm -rf $DATADIR/* && mkdir -p "$DATADIR"
 
   message "Initializing data directory..."
-  "$@" --initialize-insecure --skip-ssl || exit $?
+  "$@" --initialize-insecure --tls-version='' || exit $?
   message 'Data directory initialized'
 fi
 #
-message "Validating configuration..."
-validate_cfg "${@}"
-#
-LOG_ERROR="$(get_cfg_value 'log-error' "$@")"
-[[ "${LOG_ERROR}" = "stderr" ]] && LOG_ERROR="/var/log/mysql/mysqld.err"
-set -- "$@" --log_error="${LOG_ERROR}"
-#
 SOCKET="$(get_cfg_value 'socket' "$@")"
-"$@" --skip-networking --socket="${SOCKET}" &
+"$@" --skip-networking --socket="${SOCKET}" --wsrep-provider="none" &
 PID="${!}"
 
 MYSQL_CMD=( ${MYSQL_CLIENT} --protocol=socket -uroot -hlocalhost --socket="${SOCKET}" )
 STARTED=0
 while ps -uh --pid ${PID} > /dev/null; do
-  if echo 'SELECT 1' | "${MYSQL_CMD[@]}" 1>/dev/null 2>&1; then
+#  if echo 'SELECT 1' | "${MYSQL_CMD[@]}" 1>/dev/null 2>&1; then
+  if echo "SELECT @@wsrep_on;" | "${MYSQL_CMD[@]}" 1>&2; then
     STARTED=1
     break
   fi
@@ -221,7 +229,6 @@ else
 fi
 #
 # Reading password from docker filesystem (bind-mounted directory or file added during build)
-# remove [[ -z "${MYSQL_ROOT_HOST}" ]] && MYSQL_ROOT_HOST='%'
 file_env 'MYSQL_ROOT_HOST' '%'
 if [ ! -z "$MYSQL_ROOT_HOST" -a "$MYSQL_ROOT_HOST" != 'localhost' ]; then
 			# no, we don't care if read finds a terminating character in this heredoc
@@ -231,10 +238,10 @@ if [ ! -z "$MYSQL_ROOT_HOST" -a "$MYSQL_ROOT_HOST" != 'localhost' ]; then
 				GRANT ALL ON *.* TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION ;
 			EOSQL
 fi
-#if [[ "${MYSQL_ROOT_PASSWORD}" != EMPTY ]]; then
-#  message "ROOT password has been specified for image, updating account..."
-#  echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';" | "${MYSQL_CMD[@]}"
-#fi
+if [[ "${MYSQL_ROOT_PASSWORD}" != EMPTY ]]; then
+  message "ROOT password has been specified for image, updating account..."
+  echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';" | "${MYSQL_CMD[@]}"
+fi
 if [ ! -z "${MYSQL_ONETIME_PASSWORD:=}" ]; then
 	echo "ALTER USER 'root'@'%' PASSWORD EXPIRE;" | "${MYSQL_CMD[@]}"
 fi
@@ -249,13 +256,4 @@ message "${PRODUCT} is starting!"
 touch ${INIT_MARKER}
 #
 start_server "$@"
-
-
-
-
-
-
-
-
-
 
