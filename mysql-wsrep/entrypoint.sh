@@ -11,7 +11,7 @@
 # PRODUCT
 # WSREP_JOIN - a list of node addresses to join in a cluster
 #
-set -euxo pipefail
+set -euo pipefail
 #
 [[ ${IMAGEDEBUG:-0} -eq 1 ]] && set -x
 #
@@ -54,20 +54,20 @@ warning() {
 # (will allow for "$XYZ_DB_PASSWORD_FILE" to fill in the value of
 #  "$XYZ_DB_PASSWORD" from a file, especially for Docker's secrets feature)
 file_env() {
-	local var="$1"
-	local fileVar="${var}_FILE"
-	local def="${2:-}"
-	if [ "${!var:-}" ] && [ "${!fileVar:-}" ]; then
-		mysql_error "Both $var and $fileVar are set (but are exclusive)"
-	fi
-	local val="$def"
-	if [ "${!var:-}" ]; then
-		val="${!var}"
-	elif [ "${!fileVar:-}" ]; then
-		val="$(< "${!fileVar}")"
-	fi
-	export "$var"="$val"
-	unset "$fileVar"
+  local var="$1"
+  local fileVar="${var}_FILE"
+  local def="${2:-}"
+  if [ "${!var:-}" ] && [ "${!fileVar:-}" ]; then
+    mysql_error "Both $var and $fileVar are set (but are exclusive)"
+  fi
+  local val="$def"
+  if [ "${!var:-}" ]; then
+    val="${!var}"
+  elif [ "${!fileVar:-}" ]; then
+    val="$(< "${!fileVar}")"
+  fi
+  export "$var"="$val"
+  unset "$fileVar"
 }
 #
 validate_cfg() {
@@ -132,14 +132,14 @@ fi
 ################################################
 file_env 'MYSQL_ROOT_PASSWORD'
 if [[ -z "${MYSQL_ROOT_PASSWORD}" && -z "${MYSQL_ALLOW_EMPTY_PASSWORD:=}" && -z "${MYSQL_RANDOM_ROOT_PASSWORD:=}" ]]; then
-	echo >&2 'error: database is uninitialized and password option is not specified '
-	echo >&2 '  You need to specify one of MYSQL_ROOT_PASSWORD, MYSQL_ALLOW_EMPTY_PASSWORD and MYSQL_RANDOM_ROOT_PASSWORD'
-	exit 1
+  echo >&2 'error: database is uninitialized and password option is not specified '
+  echo >&2 '  You need to specify one of MYSQL_ROOT_PASSWORD, MYSQL_ALLOW_EMPTY_PASSWORD and MYSQL_RANDOM_ROOT_PASSWORD'
+  exit 1
 fi
 #
 DATADIR="$(get_cfg_value 'datadir' "$@")"
 if [[ ! -d "${DATADIR}/${MYSQL_DB}" ]]; then
-	rm -rf $DATADIR/* && mkdir -p "$DATADIR"
+  rm -rf $DATADIR/* && mkdir -p "$DATADIR"
 
   message "Initializing data directory..."
   "$@" --initialize-insecure --tls-version='' || exit $?
@@ -169,10 +169,10 @@ fi
 #
 if [[ "${MYSQL_INITDB_TZINFO}" -eq 1 ]]; then
   message "Loading TZINFO..."
-	# sed is for https://bugs.mysql.com/bug.php?id=20545
+  # sed is for https://bugs.mysql.com/bug.php?id=20545
   ${MYSQL_TZINFOTOSQL} /usr/share/zoneinfo \
-		| sed 's/Local time zone must be set--see zic manual page/FCTY/' \
-    | "${MYSQL_CMD[@]}" ${MYSQL_DB}
+  | sed 's/Local time zone must be set--see zic manual page/FCTY/' \
+  | "${MYSQL_CMD[@]}" ${MYSQL_DB}
 fi
 #
 file_env 'MYSQL_DATABASE'
@@ -218,9 +218,8 @@ for _file in "${INITDBDIR}"/*; do
 done
 #
 if [[ "${MYSQL_ROOT_PASSWORD}" = RANDOM || ! -z "${MYSQL_RANDOM_ROOT_PASSWORD:=}" ]]; then
-	MYSQL_ROOT_PASSWORD="$(openssl rand -base64 24)"
-  export MYSQL_ROOT_PASSWORD
-	echo "GENERATED ROOT PASSWORD: $MYSQL_ROOT_PASSWORD"
+  export MYSQL_ROOT_PASSWORD="$(openssl rand -base64 24)"
+  echo "GENERATED ROOT PASSWORD: $MYSQL_ROOT_PASSWORD"
 else
   if [[ "${MYSQL_ROOT_PASSWORD}" = EMPTY || ! -z "${MYSQL_ALLOW_EMPTY_PASSWORD:=}" ]]; then
     warning "=-> Warning! Warning! Warning!"
@@ -231,19 +230,19 @@ fi
 # Reading password from docker filesystem (bind-mounted directory or file added during build)
 file_env 'MYSQL_ROOT_HOST' '%'
 if [ ! -z "$MYSQL_ROOT_HOST" -a "$MYSQL_ROOT_HOST" != 'localhost' ]; then
-			# no, we don't care if read finds a terminating character in this heredoc
-			# https://unix.stackexchange.com/questions/265149/why-is-set-o-errexit-breaking-this-read-heredoc-expression/265151#265151
-			"${MYSQL_CMD[@]}" <<-EOSQL || true
-				CREATE USER 'root'@'${MYSQL_ROOT_HOST}' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}' ;
-				GRANT ALL ON *.* TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION ;
-			EOSQL
+  # no, we don't care if read finds a terminating character in this heredoc
+  # https://unix.stackexchange.com/questions/265149/why-is-set-o-errexit-breaking-this-read-heredoc-expression/265151#265151
+  "${MYSQL_CMD[@]}" <<-EOSQL || true
+   CREATE USER 'root'@'${MYSQL_ROOT_HOST}' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}' ;
+   GRANT ALL ON *.* TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION ;
+   EOSQL
 fi
 if [[ "${MYSQL_ROOT_PASSWORD}" != EMPTY ]]; then
   message "ROOT password has been specified for image, updating account..."
   echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';" | "${MYSQL_CMD[@]}"
 fi
 if [ ! -z "${MYSQL_ONETIME_PASSWORD:=}" ]; then
-	echo "ALTER USER 'root'@'%' PASSWORD EXPIRE;" | "${MYSQL_CMD[@]}"
+  echo "ALTER USER 'root'@'%' PASSWORD EXPIRE;" | "${MYSQL_CMD[@]}"
 fi
 #
 if ! kill -s TERM "${PID}" || ! wait "${PID}"; then
@@ -256,4 +255,3 @@ message "${PRODUCT} is starting!"
 touch ${INIT_MARKER}
 #
 start_server "$@"
-

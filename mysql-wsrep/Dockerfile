@@ -2,7 +2,8 @@ FROM rockylinux:8-minimal
 
 LABEL org.opencontainers.image.authors="info@galeracluster.com"
 
-ARG MYSQL_VERSION=8.0.34-26.15
+#ARG MYSQL_RPM_VERSION=8.0.34-26.15
+ARG MYSQL_RPM_VERSION=
 ARG OS_VERSION=el8
 ARG GOSU_VERSION=1.16
 ARG RSYNC_SST_DEPS="rsync lsof which"
@@ -15,7 +16,7 @@ RUN \
   findutils \
   tzdata \
   galera-4 \
-  mysql-wsrep-server-${MYSQL_VERSION}.${OS_VERSION} \
+  mysql-wsrep-server-${MYSQL_RPM_VERSION}.${OS_VERSION} \
   ${RSYNC_SST_DEPS} \
   less \
   iputils \

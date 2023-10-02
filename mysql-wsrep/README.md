@@ -23,4 +23,4 @@ docker run -d --network <some-network> --name node2 -e WSREP_JOIN=node1,node2,no
 where `node0,node1,node2` is a comma-separaed list of running containers' names.
 
 
-If container stops (server crashes or deliberate stop) **DO NOT** restart the container! Delete stoppped container and create a new one to join the remaining nodes.
+If container stops (server crashes or deliberate stop) **DO NOT** restart the container! Delete stopped container and create a new one to join the remaining nodes.
