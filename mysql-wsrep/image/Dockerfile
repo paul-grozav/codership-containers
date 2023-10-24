@@ -2,7 +2,6 @@ FROM rockylinux:8-minimal
 
 LABEL org.opencontainers.image.authors="info@galeracluster.com"
 
-#ARG MYSQL_RPM_VERSION=8.0.34-26.15
 ARG MYSQL_RPM_VERSION=
 ARG OS_VERSION=el8
 ARG GOSU_VERSION=1.16
