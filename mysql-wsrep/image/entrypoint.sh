@@ -17,10 +17,9 @@ set -euo pipefail
 #
 PRODUCT="mysql-wsrep"
 INITDBDIR="/codership-initdb.d"
-INIT_MARKER="/var/lib/mysql/codership-init.completed"
 # Allowed values are <user-defined password>, RANDOM, EMPTY
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-RANDOM}
-[[ ${MYSQL_ALLOW_EMPTY_PASSWORD:-0} -eq 1 ]] && MYSQL_ROOT_PASSWORD=EMPTY
+[[ ${MYSQL_ALLOW_EMPTY_PASSWORD:-0} -eq 1 ]] && MYSQL_ROOT_PASSWORD="EMPTY"
 #
 MYSQL_INITDB_TZINFO=${MYSQL_INITDB_TZINFO:-1}
 #
@@ -103,6 +102,9 @@ fi
 #
 message "Validating configuration..."
 validate_cfg "${@}"
+LOG_ERROR="$(get_cfg_value 'log-error' "$@")"
+DATADIR="$(get_cfg_value 'datadir' "$@")"
+INIT_MARKER="${DATADIR}/grastate.dat"
 #
 #################################################
 # If database is initialized and we are to join #
@@ -117,8 +119,8 @@ if [[ -n ${WSREP_JOIN:=} || -f ${INIT_MARKER} ]]; then
   if [[ -n ${WSREP_JOIN} ]]; then
     set -- "$@" "--wsrep-cluster-address=gcomm://${WSREP_JOIN}"
     if [[ -f ${INIT_MARKER} ]]; then
-      find /usr -name 'wsrep_recover'
-      WSREP_POSITION_OPTION=$(wsrep_recover)
+      find /usr -name 'wsrep_recover' && \
+      WSREP_POSITION_OPTION=$(wsrep_recover) && \
       set -- "$@" "${WSREP_POSITION_OPTION}"
     fi
   else
@@ -137,7 +139,6 @@ if [[ -z "${MYSQL_ROOT_PASSWORD}" && -z "${MYSQL_ALLOW_EMPTY_PASSWORD:=}" && -z 
   exit 1
 fi
 #
-DATADIR="$(get_cfg_value 'datadir' "$@")"
 if [[ ! -d "${DATADIR}/${MYSQL_DB}" ]]; then
   rm -rf $DATADIR/* && mkdir -p "$DATADIR"
 
@@ -154,7 +155,7 @@ MYSQL_CMD=( ${MYSQL_CLIENT} --protocol=socket -uroot -hlocalhost --socket="${SOC
 STARTED=0
 while ps -uh --pid ${PID} > /dev/null; do
 #  if echo 'SELECT 1' | "${MYSQL_CMD[@]}" 1>/dev/null 2>&1; then
-  if echo "SELECT @@wsrep_on;" | "${MYSQL_CMD[@]}" 1>&2; then
+  if echo "SELECT @@wsrep_on;" | "${MYSQL_CMD[@]}" >/dev/null; then
     STARTED=1
     break
   fi
@@ -192,7 +193,7 @@ if [[ -n "${MYSQL_USER}" ]] && [[ -n "${MYSQL_ROOT_PASSWORD}" ]]; then
   fi
   echo 'FLUSH PRIVILEGES ;' | "${MYSQL_CMD[@]}"
 else
-  message "Skipping MYSQL user creation, both MYSQL_USER and MYSQL_ROOT_PASSWORD must be set"
+  message "Skipping MYSQL user creation, both MYSQL_USER and MYSQL_PASSWORD must be set"
 fi
 #
 for _file in "${INITDBDIR}"/*; do
@@ -227,23 +228,41 @@ else
   fi
 fi
 #
+# Disable binlog for the setup session
+ROOT_SETUP="SET @@SESSION.SQL_LOG_BIN=0; "
 # Reading password from docker filesystem (bind-mounted directory or file added during build)
 file_env 'MYSQL_ROOT_HOST' '%'
-if [ ! -z "$MYSQL_ROOT_HOST" -a "$MYSQL_ROOT_HOST" != 'localhost' ]; then
+if [ ! -z "${MYSQL_ROOT_HOST}" -a "${MYSQL_ROOT_HOST}" != 'localhost' ]; then
   # no, we don't care if read finds a terminating character in this heredoc
   # https://unix.stackexchange.com/questions/265149/why-is-set-o-errexit-breaking-this-read-heredoc-expression/265151#265151
-  "${MYSQL_CMD[@]}" <<-EOSQL || true
-   CREATE USER 'root'@'${MYSQL_ROOT_HOST}' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}' ;
-   GRANT ALL ON *.* TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION ;
-   EOSQL
+  read -r -d '' ROOT_SETUP <<- EOSQL || true
+    ${ROOT_SETUP}
+    CREATE USER 'root'@'${MYSQL_ROOT_HOST}' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; 
+    GRANT ALL ON *.* TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION; 
+EOSQL
+  if [ ! -z "${MYSQL_ONETIME_PASSWORD:=}" ]; then
+#  echo "ALTER USER 'root'@'%' PASSWORD EXPIRE;" | "${MYSQL_CMD[@]}"
+    read -r -d '' ROOT_SETUP <<- EOSQL || true
+    ${ROOT_SETUP}
+    ALTER USER 'root'@'${MYSQL_ROOT_HOST}' PASSWORD EXPIRE; 
+EOSQL
+  fi
 fi
 if [[ "${MYSQL_ROOT_PASSWORD}" != EMPTY ]]; then
   message "ROOT password has been specified for image, updating account..."
-  echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';" | "${MYSQL_CMD[@]}"
+#  echo "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';" | "${MYSQL_CMD[@]}"
+  read -r -d '' ROOT_SETUP <<- EOSQL || true
+    ${ROOT_SETUP}
+    GRANT ALL ON *.* TO 'root'@'localhost' WITH GRANT OPTION; 
+    ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; 
+EOSQL
 fi
-if [ ! -z "${MYSQL_ONETIME_PASSWORD:=}" ]; then
-  echo "ALTER USER 'root'@'%' PASSWORD EXPIRE;" | "${MYSQL_CMD[@]}"
-fi
+read -r -d '' ROOT_SETUP <<- EOSQL || true
+  ${ROOT_SETUP}
+  FLUSH PRIVILEGES;
+EOSQL
+#
+echo "${ROOT_SETUP}" | ${MYSQL_CMD[@]}
 #
 if ! kill -s TERM "${PID}" || ! wait "${PID}"; then
   error "${PRODUCT} init process failed!"
@@ -252,6 +271,5 @@ fi
 #
 # Finally
 message "${PRODUCT} is starting!"
-touch ${INIT_MARKER}
 #
 start_server "$@"

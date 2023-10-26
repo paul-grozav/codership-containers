@@ -39,7 +39,6 @@ RUN gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F8
 
 # Config files
 RUN mkdir /codership-initdb.d
-ADD entrypoint.sh /
 ADD 00-codership.cnf /etc/mysql/conf.d/
 ADD 99-codership.cnf /etc/mysql/conf.d/
 RUN echo '!includedir /etc/mysql/conf.d/' >> /etc/my.cnf;
@@ -48,4 +47,6 @@ USER mysql
 VOLUME [ "/var/lib/mysql" ]
 ENTRYPOINT ["/entrypoint.sh"]
 EXPOSE 3306/tcp 33060/tcp 4567/tcp 4568/tcp
+
+ADD entrypoint.sh /
 CMD ["mysqld"]
