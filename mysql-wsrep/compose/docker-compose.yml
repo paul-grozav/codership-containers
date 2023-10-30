@@ -1,0 +1,19 @@
+version: '3'
+services:
+  node1:
+    image: ${NODE_IMAGE}
+    ports:
+      - 33061:3306
+  node2:
+    image: ${NODE_IMAGE}
+    ports:
+      - 33062:3306
+    environment:
+      - WSREP_JOIN=node1,node3
+  node3:
+    image: ${NODE_IMAGE}
+    ports:
+      - 33063:3306
+    environment:
+      - WSREP_JOIN=node1,node2
+
