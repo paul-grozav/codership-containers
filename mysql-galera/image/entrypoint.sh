@@ -2,12 +2,13 @@
 #
 # ENV variables:
 # MYSQL_USER
-# MYSQL_ROOT_PASSWORD
+# MYSQL_PASSWORD
 # MYSQL_DATABASE
 # MYSQL_ALLOW_EMPTY_PASSWORD
 # MYSQL_INITDB_TZINFO
 # MYSQL_INITDB_SKIP_TZINFO
 # MYSQL_ROOT_HOST
+# MYSQL_ROOT_PASSWORD
 # PRODUCT
 # WSREP_JOIN - a list of node addresses to join in a cluster
 #
@@ -184,9 +185,9 @@ fi
 #
 file_env 'MYSQL_USER'
 file_env 'MYSQL_PASSWORD'
-if [[ -n "${MYSQL_USER}" ]] && [[ -n "${MYSQL_ROOT_PASSWORD}" ]]; then
+if [[ -n "${MYSQL_USER}" ]] && [[ -n "${MYSQL_PASSWORD}" ]]; then
   message "Creating user ${MYSQL_USER} with password set"
-  echo "CREATE USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';" | "${MYSQL_CMD[@]}"
+  echo "CREATE USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';" | "${MYSQL_CMD[@]}"
   if [[ -n "${MYSQL_DATABASE}" ]]; then
     message "Giving all privileges on ${MYSQL_DATABASE} to ${MYSQL_USER}..."
     echo "GRANT ALL ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';" | "${MYSQL_CMD[@]}"
