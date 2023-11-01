@@ -103,8 +103,10 @@ fi
 #
 message "Validating configuration..."
 validate_cfg "${@}"
-LOG_ERROR="$(get_cfg_value 'log-error' "$@")"
 DATADIR="$(get_cfg_value 'datadir' "$@")"
+# Make sure error log is stored on persistent volume
+LOG_ERROR="${DATADIR}/mysqld.err"
+set -- "$@" "--log-error=${LOG_ERROR}"
 INIT_MARKER="${DATADIR}/grastate.dat"
 #
 #################################################
