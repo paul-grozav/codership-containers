@@ -4,12 +4,20 @@ LABEL org.opencontainers.image.authors="info@galeracluster.com"
 
 ARG MYSQL_RPM_VERSION=
 ARG OS_VERSION=el8
-ARG GOSU_VERSION=1.16
+#ARG GOSU_VERSION=1.16
 ARG RSYNC_SST_DEPS="rsync lsof which"
+
+# Create mysql user.group with predefined IDs
+# (later may be useful for mounting volumes)
+ENV USER='mysql'
+ENV UID='1000'
 
 ADD *.repo /etc/yum.repos.d
 
-RUN \
+RUN set -eu; \
+  microdnf -y install shadow-utils; \
+  groupadd -g ${UID} ${USER}; \
+  useradd -M -s '/sbin/nologin' -g ${USER} -u ${UID} ${USER}; \
   rpm --import http://releases.galeracluster.com/GPG-KEY-galeracluster.com; \
   microdnf -y install \
   findutils \
@@ -23,19 +31,20 @@ RUN \
   microdnf clean all; \
   rm -rf /var/cache/dnf /var/cache/yum /usr/lib/.build-id; \
   rm -rf /var/cache/dnf /var/cache/yum /var/lib/mysql
-RUN \
+
+RUN set -eu; \
   mkdir -p /var/lib/mysql; \
   touch /var/log/mysqld.log; \
   chown mysql:mysql /var/lib/mysql /var/log/mysqld.log
 
-# add gosu for easy step-down from root
-RUN gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
-    && curl -o /usr/local/bin/gosu -SL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64" \
-    && curl -o /usr/local/bin/gosu.asc -SL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64.asc" \
-    && gpg --verify /usr/local/bin/gosu.asc \
-    && rm /usr/local/bin/gosu.asc \
-    && rm -fr /root/.gnupg/ \
-    && chmod +x /usr/local/bin/gosu
+## add gosu for easy step-down from root
+#RUN gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
+#    && curl -o /usr/local/bin/gosu -SL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64" \
+#    && curl -o /usr/local/bin/gosu.asc -SL "https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-amd64.asc" \
+#    && gpg --verify /usr/local/bin/gosu.asc \
+#    && rm /usr/local/bin/gosu.asc \
+#    && rm -fr /root/.gnupg/ \
+#    && chmod +x /usr/local/bin/gosu
 
 # Config files
 RUN mkdir /codership-initdb.d

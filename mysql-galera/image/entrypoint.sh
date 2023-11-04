@@ -49,6 +49,23 @@ warning() {
   echo >&2 "[Init WARNING]: ${@}"
 }
 #
+debug_exit() {
+  rcode=$1
+  echo "Failure detected. Some diagnostic info below:"
+  echo "id:"
+  id
+  echo
+  echo "ls -l ${DATADIR}:"
+  ls -l ${DATADIR} || :
+  echo
+  echo "tail -n1024 ${LOG_ERROR}"
+  tail -n1024 ${LOG_ERROR} || :
+  echo
+  echo "journalctl -xe --no-pager"
+  journalctl -xe --no-pager
+  exit $rcode
+}
+#
 # usage: file_env VAR [DEFAULT]
 #    ie: file_env 'XYZ_DB_PASSWORD' 'example'
 # (will allow for "$XYZ_DB_PASSWORD_FILE" to fill in the value of
@@ -90,7 +107,7 @@ start_server() {
   echo "Starting '$@'"
   # start the process and in case of error dump significant
   # part of error log to stderr for quicker debugging
-  exec "$@" 2>&1 || tail -n1024 -f ${LOG_ERROR} 1>&2
+  exec "$@" 2>&1 || debug_exit $?
 }
 #
 message "Preparing ${PRODUCT}..."
@@ -104,6 +121,7 @@ fi
 message "Validating configuration..."
 validate_cfg "${@}"
 DATADIR="$(get_cfg_value 'datadir' "$@")"
+DATADIR=${DATADIR%/} # strip the trailing '/' if any
 # Make sure error log is stored on persistent volume
 LOG_ERROR="${DATADIR}/mysqld.err"
 set -- "$@" "--log-error=${LOG_ERROR}"
@@ -146,7 +164,7 @@ if [[ ! -d "${DATADIR}/${MYSQL_DB}" ]]; then
   rm -rf $DATADIR/* && mkdir -p "$DATADIR"
 
   message "Initializing data directory..."
-  "$@" --initialize-insecure --tls-version='' || exit $?
+  "$@" --initialize-insecure --tls-version='' || debug_exit $?
   message 'Data directory initialized'
 fi
 #
@@ -157,7 +175,6 @@ PID="${!}"
 MYSQL_CMD=( ${MYSQL_CLIENT} --protocol=socket -uroot -hlocalhost --socket="${SOCKET}" )
 STARTED=0
 while ps -uh --pid ${PID} > /dev/null; do
-#  if echo 'SELECT 1' | "${MYSQL_CMD[@]}" 1>/dev/null 2>&1; then
   if echo "SELECT @@wsrep_on;" | "${MYSQL_CMD[@]}" >/dev/null; then
     STARTED=1
     break
@@ -167,8 +184,7 @@ while ps -uh --pid ${PID} > /dev/null; do
 done
 if [[ "${STARTED}" -eq 0 ]]; then
   error "${PRODUCT} failed to start!"
-  cat "${LOG_ERROR}"
-  exit 1
+  debug_exit 1
 fi
 #
 if [[ "${MYSQL_INITDB_TZINFO}" -eq 1 ]]; then
