@@ -20,6 +20,7 @@ RUN set -eu; \
   useradd -M -s '/sbin/nologin' -g ${USER} -u ${UID} ${USER}; \
   rpm --import http://releases.galeracluster.com/GPG-KEY-galeracluster.com; \
   microdnf -y install \
+  hostname \
   findutils \
   tzdata \
   galera-4 \
@@ -52,7 +53,7 @@ ADD 00-codership.cnf /etc/mysql/conf.d/
 ADD 99-codership.cnf /etc/mysql/conf.d/
 RUN echo '!includedir /etc/mysql/conf.d/' >> /etc/my.cnf;
 
-USER mysql
+USER ${USER}
 VOLUME [ "/var/lib/mysql" ]
 ENTRYPOINT ["/entrypoint.sh"]
 EXPOSE 3306/tcp 33060/tcp

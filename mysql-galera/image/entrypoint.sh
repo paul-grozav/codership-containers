@@ -31,38 +31,47 @@ MYSQL_CLIENT=mysql
 MYSQL_SERVER=mysqld
 MYSQL_INSTALL_DB=mysql_install_db
 MYSQL_TZINFOTOSQL=mysql_tzinfo_to_sql
+K8S_ENV=/k8s.env
 #
 # if command starts with an option, prepend mysqld
 if [[ "${1:0:1}" = '-' ]] || [[ -z "${1:0:1}" ]]; then
   set -- ${MYSQL_SERVER} "${@}"
 fi
 #
+timestamp() {
+  date +%Y%m%d\ %H:%M:%S.%N | cut -b -21
+}
+#
 message() {
-  echo "[Init message]: ${@}"
+  echo "[Init message] $(timestamp): ${@}"
 }
 #
 error() {
-  echo >&2 "[Init ERROR]: ${@}"
+  echo >&2 "[Init ERROR] $(timestamp): ${@}"
 }
 #
 warning() {
-  echo >&2 "[Init WARNING]: ${@}"
+  echo >&2 "[Init WARNING] $(timestamp): ${@}"
 }
 #
+# Dump some useful info into the container log to simplify debugging
+# in case of error
 debug_exit() {
-  rcode=$1
-  echo "Failure detected. Some diagnostic info below:"
-  echo "id:"
-  id
-  echo
-  echo "ls -l ${DATADIR}:"
-  ls -l ${DATADIR} || :
-  echo
-  echo "tail -n1024 ${LOG_ERROR}"
-  tail -n1024 ${LOG_ERROR} || :
-  echo
-  echo "journalctl -xe --no-pager"
-  journalctl -xe --no-pager
+  rcode=${1}
+  if [[ $rcode -ne 0 ]]; then
+    echo "Error detected. Some diagnostic info below:"
+    echo "id:"
+    id
+    echo
+    echo "ls -l ${DATADIR}:"
+    ls -l ${DATADIR} || :
+    echo
+    echo "tail -n1024 ${LOG_ERROR}"
+    tail -n1024 ${LOG_ERROR} || :
+    echo
+    echo "journalctl -xe --no-pager"
+    journalctl -xe --no-pager
+  fi
   exit $rcode
 }
 #
@@ -105,6 +114,9 @@ get_cfg_value() {
 #
 start_server() {
   echo "Starting '$@'"
+  # sleep a bit in case we just crashed and are restarting
+  # to allow the remaining nodes to form a new PC in peace
+  sleep 3
   # start the process and in case of error dump significant
   # part of error log to stderr for quicker debugging
   exec "$@" 2>&1 || debug_exit $?
@@ -128,22 +140,67 @@ set -- "$@" "--log-error=${LOG_ERROR}"
 INIT_MARKER="${DATADIR}/grastate.dat"
 #
 #################################################
-# If database is initialized and we are to join #
-# an existing cluster - recover position        #
+# If database is initialized - recover position #
 #################################################
+if [[ -f ${INIT_MARKER} ]]; then
+  message "Recovering data directory..."
+  find /usr -name 'wsrep_recover' && \
+  WSREP_POSITION_OPTION=$(wsrep_recover) && \
+  set -- "$@" "${WSREP_POSITION_OPTION}"
+fi
+#################################################
+# If WSREP_JOIN is not set but we run in a      #
+# Kubernetes pod then assume StatefulSet and    #
+# construct WSREP_JOIN ourselves                #
+#################################################
+if [[ -z ${WSREP_JOIN:=} && -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
+  IFS='.'; my_fqdn=($(hostname -f)); unset IFS
+  my_name=${my_fqdn[0]}
+  my_ordinal=${my_name##*-}
+  state_file="${DATADIR}/grastate.dat"
+
+  safe_to_bootstrap=
+  if [[ -n "${WSREP_BOOTSTRAP_FROM:=}" ]]; then
+    # force bootstrap from a given node
+    [[ ${WSREP_BOOTSTRAP_FROM} -eq ${my_ordinal} ]] \
+      && safe_to_bootstrap=1 || safe_to_bootstrap=0
+    # rewrite state file if present
+    [[ -r ${state_file} ]] && \
+      sed -i "s/safe_to_bootstrap: [0-9]/safe_to_bootstrap: $safe_to_bootstrap/" \
+      ${state_file}
+  fi
+
+  [[ -z "${safe_to_bootstrap}" ]] && \
+    safe_to_bootstrap=$(grep -s 'safe_to_bootstrap' ${state_file} | cut -d ' ' -f 2) || :
+  # if there is no state file and my ordinal is 0 then it is the first start
+  # of the first node
+  [[ -z "${safe_to_bootstrap}" && ${my_ordinal} -eq 0 ]] && safe_to_bootstrap=1
+
+  if [[ ${safe_to_bootstrap} -ne 1 ]]; then
+    # must join others, construct WSREP_JOIN
+    base_name=${my_name%-*}
+    subdomain=${my_fqdn[1]}
+    # there should be at least max(3, my_ordinal + 1) replicas
+    # (numbered from 0, 3 is the minimum usable cluster size)
+    [[ "${my_ordinal}" -le 2 ]] && max_ordinal=2 || max_ordinal=$((${my_ordinal} - 1))
+    for i in $(seq 0 ${max_ordinal}); do
+      if [[ $i -ne ${my_ordinal} ]]; then
+        node_name="${base_name}-${i}.${subdomain}"
+        [[ -z ${WSREP_JOIN} ]] && WSREP_JOIN="${node_name}" || WSREP_JOIN+=",${node_name}"
+      fi
+    done
+  fi
+  message "Running in Kubernetes: WSREP_JOIN=${WSREP_JOIN}, MEM_REQUEST=${MEM_REQUEST}, MEM_LIMIT=${MEM_LIMIT}"
+#  export WSREP_JOIN="${WSREP_JOIN}"
+fi
 ################################################# 
 # If we are joining a cluster then skip         #
 # initialization and start right away - we'll   #
-# be getting SST anyways                        #
+# be getting state transfer anyways             #
 #################################################
-if [[ -n ${WSREP_JOIN:=} || -f ${INIT_MARKER} ]]; then
+if [[ -n ${WSREP_JOIN} || -f ${INIT_MARKER} ]]; then
   if [[ -n ${WSREP_JOIN} ]]; then
     set -- "$@" "--wsrep-cluster-address=gcomm://${WSREP_JOIN}"
-    if [[ -f ${INIT_MARKER} ]]; then
-      find /usr -name 'wsrep_recover' && \
-      WSREP_POSITION_OPTION=$(wsrep_recover) && \
-      set -- "$@" "${WSREP_POSITION_OPTION}"
-    fi
   else
     set -- "$@" "--wsrep-new-cluster"
   fi
@@ -285,10 +342,11 @@ echo "${ROOT_SETUP}" | ${MYSQL_CMD[@]}
 #
 if ! kill -s TERM "${PID}" || ! wait "${PID}"; then
   error "${PRODUCT} init process failed!"
-  exit 1
+  debug_exit 1
 fi
 #
 # Finally
 message "${PRODUCT} is starting!"
 #
 start_server "$@"
+debug_exit $?
