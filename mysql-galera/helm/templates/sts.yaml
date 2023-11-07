@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-galera-sts
+  labels:
+    app: mysql-galera-app
+    #tier: dbms
+spec:
+  # replication controller
+  serviceName: mysql-galera-cluster # must match the headless service name for pod hostname resolution
+  replicas: {{ .Values.replicas | default 3 }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: mysql-galera-node
+      #tier: dbms
+  # pod template
+  template:
+    metadata:
+      labels:
+        app: mysql-galera-node
+        #tier: dbms
+    spec: # Pod spec
+      #subdomain: mysql-galera-cluster
+      imagePullSecrets:
+      - name: regcred
+      initContainers: # this might be minikube/hostpath-specific
+      - name: chown-datadir
+        image: busybox:latest
+        command:
+        - /bin/chown
+        - -R
+        - "1000"  # or whatever the mysqld UID is, use string "1000" not 1000 due to yaml
+        - /var/lib/mysql
+        volumeMounts:
+        - name: datadir # same as in containers and volumes
+          mountPath: /var/lib/mysql
+      containers:
+      - name: mysql-galera-node
+        image: {{ .Values.image.repository | default "codership/mysql-galera" }}:8.0.34
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: 4Gi
+            cpu: "1"
+        envFrom:
+        - configMapRef:
+            name: mysql-cm-v1
+        env:
+#        - name: WSREP_BOOTSTRAP_FROM # ordinal of a seed pod
+#          value: "1"
+        - name: MEM_REQUEST
+          valueFrom:
+            resourceFieldRef:
+              containerName: mysql-galera-node
+              resource: requests.memory
+        - name: MEM_LIMIT
+          valueFrom:
+            resourceFieldRef:
+              containerName: mysql-galera-node
+              resource: limits.memory
+        ports:
+        - containerPort: 3306
+          name: client
+        - containerPort: 4567
+          name: replication
+        - containerPort: 4568
+          name: ist
+        - containerPort: 4444
+          name: sst
+        volumeMounts:
+        - name: datadir
+          mountPath: /var/lib/mysql # inside container
+          readOnly: false
+#        livenessProbe:
+#          exec:
+#            command: ["mysqladmin", "ping"]
+#          initialDelaySeconds: 30
+#          periodSeconds: 10
+#          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command: [ sh, /var/lib/mysql/k8s_readiness_probe ]
+          initialDelaySeconds: 5
+          periodSeconds: 2
+          timeoutSeconds: 1
+#      volumes:
+#      - name: datadir
+#        persistentVolumeClaim:
+#          claimName: mysql-datadir-pvc  
+  volumeClaimTemplates:
+  - metadata:
+      name: datadir
+    spec:
+      accessModes: [ ReadWriteMany ]
+      storageClassName: minikube-sc
+      resources:
+        requests:
+          storage: 2Gi

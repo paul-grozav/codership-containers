@@ -1,0 +1,8 @@
+kind: ConfigMap 
+apiVersion: v1 
+metadata:
+  name: mysql-cm-v1
+data:
+  MYSQL_USER: 'test'
+  MYSQL_PASSWORD: 'testpass'
+  MYSQL_ROOT_PASSWORD: 'rootpass'
