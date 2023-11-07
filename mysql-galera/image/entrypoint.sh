@@ -31,7 +31,6 @@ MYSQL_CLIENT=mysql
 MYSQL_SERVER=mysqld
 MYSQL_INSTALL_DB=mysql_install_db
 MYSQL_TZINFOTOSQL=mysql_tzinfo_to_sql
-K8S_ENV=/k8s.env
 #
 # if command starts with an option, prepend mysqld
 if [[ "${1:0:1}" = '-' ]] || [[ -z "${1:0:1}" ]]; then
@@ -43,15 +42,15 @@ timestamp() {
 }
 #
 message() {
-  echo "[Init message] $(timestamp): ${@}"
+  echo "$(timestamp) [Init message]: ${@}"
 }
 #
 error() {
-  echo >&2 "[Init ERROR] $(timestamp): ${@}"
+  echo >&2 "$(timestamp) [Init ERROR]: ${@}"
 }
 #
 warning() {
-  echo >&2 "[Init WARNING] $(timestamp): ${@}"
+  echo >&2 "$(timestamp)[Init WARNING]: ${@}"
 }
 #
 # Dump some useful info into the container log to simplify debugging
@@ -113,13 +112,18 @@ get_cfg_value() {
 }
 #
 start_server() {
-  echo "Starting '$@'"
+  message "Starting '$@'"
   # sleep a bit in case we just crashed and are restarting
   # to allow the remaining nodes to form a new PC in peace
   sleep 3
   # start the process and in case of error dump significant
   # part of error log to stderr for quicker debugging
-  exec "$@" 2>&1 || debug_exit $?
+	if [ "$(id -u)" = "0" ]; then
+		message "Switching to dedicated user 'mysql'"
+		exec gosu mysql "$@" 2>&1 || debug_exit $?
+  else
+    exec "$@" 2>&1 || debug_exit $?
+	fi
 }
 #
 message "Preparing ${PRODUCT}..."
@@ -192,6 +196,18 @@ if [[ -z ${WSREP_JOIN:=} && -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
   fi
   message "Running in Kubernetes: WSREP_JOIN=${WSREP_JOIN}, MEM_REQUEST=${MEM_REQUEST}, MEM_LIMIT=${MEM_LIMIT}"
 #  export WSREP_JOIN="${WSREP_JOIN}"
+fi
+# set up readiness probe
+if [[ -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
+  readiness_probe="${DATADIR}/k8s_readiness_probe"
+  cat << EOF > "${readiness_probe}"
+if [[ -n "\${MYSQL_PASSWORD}" ]]; then
+  SYNCED=4
+  export MYSQL_PWD="\${MYSQL_PASSWORD}"
+  [[ \$(mysql -h\$HOSTNAME -u\$MYSQL_USER --disable-column-names -Be "SHOW STATUS LIKE 'wsrep_local_state'" | cut -f2) -eq \$SYNCED ]]
+fi
+EOF
+  chmod 700 "${readiness_probe}"
 fi
 ################################################# 
 # If we are joining a cluster then skip         #
