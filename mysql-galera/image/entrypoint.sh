@@ -118,12 +118,12 @@ start_server() {
   sleep 3
   # start the process and in case of error dump significant
   # part of error log to stderr for quicker debugging
-	if [ "$(id -u)" = "0" ]; then
-		message "Switching to dedicated user 'mysql'"
-		exec gosu mysql "$@" 2>&1 || debug_exit $?
+  if [ "$(id -u)" = "0" ]; then
+    message "Switching to dedicated user 'mysql'"
+    exec gosu mysql "$@" 2>&1 || debug_exit $?
   else
     exec "$@" 2>&1 || debug_exit $?
-	fi
+  fi
 }
 #
 message "Preparing ${PRODUCT}..."
@@ -247,13 +247,14 @@ PID="${!}"
 
 MYSQL_CMD=( ${MYSQL_CLIENT} --protocol=socket -uroot -hlocalhost --socket="${SOCKET}" )
 STARTED=0
+message "${PRODUCT} initialization startup in progress..."
 while ps -uh --pid ${PID} > /dev/null; do
-  if echo "SELECT @@wsrep_on;" | "${MYSQL_CMD[@]}" >/dev/null; then
+  sleep 1
+  if echo "SELECT @@wsrep_on;" | "${MYSQL_CMD[@]}" >/dev/null 2>&1; then
     STARTED=1
     break
   fi
-  message "${PRODUCT} initialization startup in progress..."
-  sleep 1
+  message "."
 done
 if [[ "${STARTED}" -eq 0 ]]; then
   error "${PRODUCT} failed to start!"
