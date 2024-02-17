@@ -22,3 +22,12 @@ docker run -d --network <some-network> --name node2 -e WSREP_JOIN=node1,node2,no
 where `node0,node1,node2` is a comma-separaed list of running containers' names.
 
 If container stops (server crashes or deliberate stop) **DO NOT** restart the container! Delete stopped container and create a new one to join the remaining nodes.
+
+When adding a node to the cluster always use exactly the same image tag as the othe cluster nodes. Never use "latest".
+
+### Upgrading a cluster to another release (tag)
+
+ 1. Add new nodes with the new tag to the existing cluster but don't use them for client connections.
+ 2. Stop and remove old nodes.
+ 3. Now new nodes are safe to use.
+
