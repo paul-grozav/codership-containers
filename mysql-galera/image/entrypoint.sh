@@ -111,6 +111,21 @@ get_cfg_value() {
   "${@}" --verbose --help --log-bin-index="$(mktemp -u)" 2>/dev/null | grep "^$conf " | awk '{ print $2 }'
 }
 #
+# if running in k8s
+set_up_k8s_readiness_probe() {
+  if [[ -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
+    readiness_probe="${DATADIR}/k8s_readiness_probe"
+    cat << EOF > "${readiness_probe}"
+if [[ -n "\${MYSQL_PASSWORD}" ]]; then
+  SYNCED=4
+  export MYSQL_PWD="\${MYSQL_PASSWORD}"
+  [[ \$(mysql -h\$HOSTNAME -u\$MYSQL_USER --disable-column-names -Be "SHOW STATUS LIKE 'wsrep_local_state'" | cut -f2) -eq \$SYNCED ]]
+fi
+EOF
+    chmod 700 "${readiness_probe}"
+  fi
+}
+#
 start_server() {
   message "Starting '$@'"
   # sleep a bit in case we just crashed and are restarting
@@ -124,6 +139,12 @@ start_server() {
   else
     exec "$@" 2>&1 || debug_exit $?
   fi
+}
+#
+start() {
+  set_up_k8s_readiness_probe
+  start_server $@
+  debug_exit ${?}
 }
 #
 message "Preparing ${PRODUCT}..."
@@ -197,18 +218,6 @@ if [[ -z ${WSREP_JOIN:=} && -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
   message "Running in Kubernetes: WSREP_JOIN=${WSREP_JOIN}, MEM_REQUEST=${MEM_REQUEST}, MEM_LIMIT=${MEM_LIMIT}"
 #  export WSREP_JOIN="${WSREP_JOIN}"
 fi
-# set up readiness probe
-if [[ -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
-  readiness_probe="${DATADIR}/k8s_readiness_probe"
-  cat << EOF > "${readiness_probe}"
-if [[ -n "\${MYSQL_PASSWORD}" ]]; then
-  SYNCED=4
-  export MYSQL_PWD="\${MYSQL_PASSWORD}"
-  [[ \$(mysql -h\$HOSTNAME -u\$MYSQL_USER --disable-column-names -Be "SHOW STATUS LIKE 'wsrep_local_state'" | cut -f2) -eq \$SYNCED ]]
-fi
-EOF
-  chmod 700 "${readiness_probe}"
-fi
 ################################################# 
 # If we are joining a cluster then skip         #
 # initialization and start right away - we'll   #
@@ -220,8 +229,7 @@ if [[ -n ${WSREP_JOIN} || -f ${INIT_MARKER} ]]; then
   else
     set -- "$@" "--wsrep-new-cluster"
   fi
-  start_server "$@"
-  exit ${?}
+  start $@
 fi
 ################################################
 # Need to initialize the database before start #
@@ -365,5 +373,4 @@ fi
 # Finally
 message "${PRODUCT} is starting!"
 #
-start_server "$@"
-debug_exit $?
+start $@
