@@ -25,7 +25,6 @@ MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-RANDOM}
 MYSQL_INITDB_TZINFO=${MYSQL_INITDB_TZINFO:-1}
 #
 MYSQL_DB=mysql
-MYSQL_SYSUSER=mysql
 #
 MYSQL_CLIENT=mysql
 MYSQL_SERVER=mysqld
@@ -127,7 +126,8 @@ EOF
 }
 #
 start_server() {
-  message "Starting '$@'"
+  message "${PRODUCT} is starting!"
+  message "Running '$@'"
   # sleep a bit in case we just crashed and are restarting
   # to allow the remaining nodes to form a new PC in peace
   sleep 3
@@ -216,19 +216,20 @@ if [[ -z ${WSREP_JOIN:=} && -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
     done
   fi
   message "Running in Kubernetes: WSREP_JOIN=${WSREP_JOIN}, MEM_REQUEST=${MEM_REQUEST}, MEM_LIMIT=${MEM_LIMIT}"
-#  export WSREP_JOIN="${WSREP_JOIN}"
 fi
+#
+if [[ -n ${WSREP_JOIN} ]]; then
+  set -- "$@" "--wsrep-cluster-address=gcomm://${WSREP_JOIN}"
+else
+  set -- "$@" "--wsrep-new-cluster"
+fi
+#
 ################################################# 
 # If we are joining a cluster then skip         #
 # initialization and start right away - we'll   #
 # be getting state transfer anyways             #
 #################################################
 if [[ -n ${WSREP_JOIN} || -f ${INIT_MARKER} ]]; then
-  if [[ -n ${WSREP_JOIN} ]]; then
-    set -- "$@" "--wsrep-cluster-address=gcomm://${WSREP_JOIN}"
-  else
-    set -- "$@" "--wsrep-new-cluster"
-  fi
   start $@
 fi
 ################################################
@@ -371,6 +372,4 @@ if ! kill -s TERM "${PID}" || ! wait "${PID}"; then
 fi
 #
 # Finally
-message "${PRODUCT} is starting!"
-#
 start $@

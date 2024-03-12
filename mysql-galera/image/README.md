@@ -19,7 +19,7 @@ To join a cluster of nodes:
 ```
 docker run -d --network <some-network> --name node2 -e WSREP_JOIN=node1,node2,node3 ... <image tag>
 ```
-where `node0,node1,node2` is a comma-separaed list of running containers' names.
+where `node0,node1,node2` is a comma-separated list of running containers' names. It should contain at least one node from primary configuration, but does not need to list all.
 
 If container stops (server crashes or deliberate stop) **DO NOT** restart the container! Delete stopped container and create a new one to join the remaining nodes.
 
