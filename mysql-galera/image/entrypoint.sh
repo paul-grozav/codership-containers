@@ -159,15 +159,15 @@ message "Validating configuration..."
 validate_cfg "${@}"
 DATADIR="$(get_cfg_value 'datadir' "$@")"
 DATADIR=${DATADIR%/} # strip the trailing '/' if any
+[[ -d ${DATADIR}/mysql ]] && [[ -f ${DATADIR}/mysql.ibd ]] && DATADIR_INITIALIZED=y
 # Make sure error log is stored on persistent volume
 LOG_ERROR="${DATADIR}/mysqld.err"
 set -- "$@" "--log-error=${LOG_ERROR}"
-INIT_MARKER="${DATADIR}/grastate.dat"
 #
 #################################################
 # If database is initialized - recover position #
 #################################################
-if [[ -f ${INIT_MARKER} ]]; then
+if [[ -n ${DATADIR_INITIALIZED:=} ]]; then
   message "Recovering data directory..."
   find /usr -name 'wsrep_recover' && \
   WSREP_POSITION_OPTION=$(wsrep_recover) && \
@@ -229,7 +229,7 @@ fi
 # initialization and start right away - we'll   #
 # be getting state transfer anyways             #
 #################################################
-if [[ -n ${WSREP_JOIN} || -f ${INIT_MARKER} ]]; then
+if [[ -n ${WSREP_JOIN} || -n ${DATADIR_INITIALIZED} ]]; then
   start $@
 fi
 ################################################
@@ -238,7 +238,7 @@ fi
 file_env 'MYSQL_ROOT_PASSWORD'
 if [[ -z "${MYSQL_ROOT_PASSWORD}" && -z "${MYSQL_ALLOW_EMPTY_PASSWORD:=}" && -z "${MYSQL_RANDOM_ROOT_PASSWORD:=}" ]]; then
   echo >&2 'error: database is uninitialized and password option is not specified '
-  echo >&2 '  You need to specify one of MYSQL_ROOT_PASSWORD, MYSQL_ALLOW_EMPTY_PASSWORD and MYSQL_RANDOM_ROOT_PASSWORD'
+  echo >&2 '  You need to specify one of MYSQL_ROOT_PASSWORD, MYSQL_ALLOW_EMPTY_PASSWORD or MYSQL_RANDOM_ROOT_PASSWORD'
   exit 1
 fi
 #
