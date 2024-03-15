@@ -1,22 +1,24 @@
+# Main MySQL client service
 apiVersion: v1
 kind: Service
 metadata:
-  name: mysql-svc
+  name: {{ include "mysql-galera.fullname" . }}-client
 spec:
   type: LoadBalancer
   ports:
   - port: 3306
     protocol: TCP
-    nodePort: 30006 # external port
+    nodePort: {{ .Values.service.port }} # external port
     name: client
   selector:
     app: mysql-galera-node
     #tier: dbms
 ---
+# Headless replication service
 apiVersion: v1
 kind: Service
 metadata:
-  name: mysql-galera-cluster
+  name: {{ include "mysql-galera.fullname" . }}
 spec:
   type: ClusterIP
   clusterIP: None

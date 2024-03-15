@@ -2,10 +2,15 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# Environment for the image (to be set at command line, overrides settings in config map)
+# e.g. --set env.WSREP_BOOTSTRAP_FROM="2"
+env: {}
+
+# Never go below 3
 replicas: 3
 
 image:
-  repository: codership/mysql-galera-test
+  repository: codership/mysql-galera
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -13,6 +18,36 @@ image:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+# Storage class for persistent volume claims, depends on k8s provider
+# Available options:
+# - minikube
+# - efs (Amazon EKS)
+storageClass:
+
+# Minimum required resources per pod
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube.
+  # Below are bare minimums, anything less is not guaranteed to work.
+  requests:
+    memory: 4Gi # 4G is the minimum for MySQL 8.0 to properly function
+    cpu: 1
+    storage: 2Gi
+
+# Where to expose MySQL client service to outside world
+service:
+  port: 30006
+
+# Autoscaling should be used with caution as persistent volume claims will
+# linger after scale down
+autoscaling:
+  enabled: false
+  minReplicas: 3
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -39,10 +74,6 @@ securityContext: {}
   # runAsNonRoot: true
   # runAsUser: 1000
 
-service:
-  type: ClusterIP
-  port: 80
-
 ingress:
   enabled: false
   className: ""
@@ -58,38 +89,6 @@ ingress:
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
-autoscaling:
-  enabled: false
-  minReplicas: 3
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-# Additional volumes on the output Deployment definition.
-volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
-
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
 
 nodeSelector: {}
 

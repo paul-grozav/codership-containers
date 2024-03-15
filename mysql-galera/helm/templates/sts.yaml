@@ -1,13 +1,13 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: mysql-galera-sts
+  name: {{ include "mysql-galera.fullname" . }}
   labels:
     app: mysql-galera-app
     #tier: dbms
 spec:
   # replication controller
-  serviceName: mysql-galera-cluster # must match the headless service name for pod hostname resolution
+  serviceName: {{ include "mysql-galera.fullname" . }} # must match the headless service name for pod hostname resolution
   replicas: {{ .Values.replicas | default 3 }}
   podManagementPolicy: Parallel
   selector:
@@ -21,7 +21,6 @@ spec:
         app: mysql-galera-node
         #tier: dbms
     spec: # Pod spec
-      #subdomain: mysql-galera-cluster
       imagePullSecrets:
       - name: regcred
       initContainers: # this might be minikube/hostpath-specific
@@ -37,18 +36,24 @@ spec:
           mountPath: /var/lib/mysql
       containers:
       - name: mysql-galera-node
-        image: {{ .Values.image.repository | default "codership/mysql-galera" }}:8.0.34
+        image: {{ .Values.image.repository | default "codership/mysql-galera" }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: Always
         resources:
-          limits:
-            memory: 4Gi
-            cpu: "1"
+          requests:
+            memory: {{ .Values.resources.requests.memory }}
+            cpu: {{ .Values.resources.requests.cpu }}
+        # Setting environment variables for the image
+        # 1. First get them from ConfigMap
         envFrom:
         - configMapRef:
-            name: mysql-cm-v1
+            name: {{ include "mysql-galera.fullname" . }}-v1
+        # 2. Override from command line
         env:
-#        - name: WSREP_BOOTSTRAP_FROM # ordinal of a seed pod
-#          value: "1"
+        {{- range $key, $value := .Values.env }}
+        - name: {{ $key }}
+          value: "{{ $value }}"
+        {{- end }}
+        # 3. make some internal k8s parameters available to the image
         - name: MEM_REQUEST
           valueFrom:
             resourceFieldRef:
@@ -81,19 +86,15 @@ spec:
         readinessProbe:
           exec:
             command: [ sh, /var/lib/mysql/k8s_readiness_probe ]
-          initialDelaySeconds: 5
+          initialDelaySeconds: 15
           periodSeconds: 2
           timeoutSeconds: 1
-#      volumes:
-#      - name: datadir
-#        persistentVolumeClaim:
-#          claimName: mysql-datadir-pvc  
   volumeClaimTemplates:
   - metadata:
       name: datadir
     spec:
       accessModes: [ ReadWriteMany ]
-      storageClassName: minikube-sc
+      storageClassName: {{ include "mysql-galera.fullname" . }}-{{ .Values.storageClass }}-sc
       resources:
         requests:
-          storage: 2Gi
+          storage: {{ .Values.resources.requests.storage }}

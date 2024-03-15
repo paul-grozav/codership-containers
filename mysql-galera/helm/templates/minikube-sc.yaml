@@ -3,7 +3,7 @@
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: minikube-sc
+  name: {{ include "mysql-galera.fullname" . }}-minikube-sc
 provisioner: k8s.io/minikube-hostpath
 volumeBindingMode: Immediate
 reclaimPolicy: Retain
