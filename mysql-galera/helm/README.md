@@ -20,6 +20,16 @@ For all variables see https://hub.docker.com/_/mysql. Not all of them are suppor
 --set resorces.requests.memory=4Gi --set resources.requests.storage=16Gi --set resources.requests.cpu=4
 ```
 
+### Bootstrap from a particular pod
+In case of a catastrophic failure (cluster won't recover by itself), it can be forced to bootstrap from a particular pod:
+```
+helm install --set env.WSREP_BOOTSTRAP_FROM=<pod number, 0 to n-1> <cluster name> .
+```
+after that it the variable should be reset to unrealistic value:
+```
+helm upgrade --set env.WSREP_BOOTSTRAP_FROM=999 <cluster name> .
+```
+
 ## Provider specific usage
 
 ### Minikube
