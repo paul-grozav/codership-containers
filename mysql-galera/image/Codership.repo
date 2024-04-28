@@ -1,15 +1,22 @@
 [Codership-Galera]
 name = Codership Galera Repo
-baseurl = http://releases.galeracluster.com/galera-4/redhat/8/x86_64/
-gpgkey  = http://releases.galeracluster.com/GPG-KEY-galeracluster.com
+baseurl = http://releases.galeracluster.com/GALERA_RPM_VERSION/redhat/$releasever/$basearch/
 gpgcheck = 1
 enable = 1
 module_hotfixes=true
 
 [Codership-MySQL]
 name = Codership MySQL Repo
-baseurl = http://releases.galeracluster.com/mysql-wsrep-8.0/redhat/8/x86_64/
-gpgkey  = http://releases.galeracluster.com/GPG-KEY-galeracluster.com
+baseurl = http://releases.galeracluster.com/MYSQL_RPM_VERSION/redhat/$releasever/$basearch/
 gpgcheck = 1
 enable = 1
 module_hotfixes=true
+
+# For correct boost library version
+[RockyLinux-AppStream]
+name=Rocky Linux $releasever - AppStream
+mirrorlist=https://mirrors.rockylinux.org/mirrorlist?arch=$basearch&repo=AppStream-$releasever
+#baseurl=http://dl.rockylinux.org/$contentdir/$releasever/AppStream/$basearch/os/
+gpgcheck=1
+enabled=1
+countme=1

@@ -1,42 +1,50 @@
-FROM rockylinux:8-minimal
+ARG RH_VERSION=
+FROM redhat/ubi${RH_VERSION}-minimal
 
 LABEL org.opencontainers.image.authors="info@galeracluster.com"
 
+ARG RH_VERSION=
 ARG MYSQL_RPM_VERSION=
-ARG OS_VERSION=el8
+ARG GALERA_RPM_VERSION=4
 ARG GOSU_VERSION=1.16
-ARG DEBUG_UTILS="less iputils bind-utils telnet"
+ARG DEBUG_UTILS="less iputils bind-utils"
 ARG RSYNC_SST_DEPS="rsync lsof which"
 
 # Create mysql user.group with predefined IDs
 # (later may be useful for mounting volumes)
 ENV USER='mysql'
 ENV UID='1000'
+ENV DNF=microdnf
 
 ADD *.repo /etc/yum.repos.d
 
 RUN set -eu; \
-  microdnf -y install shadow-utils; \
+  sed -i s/MYSQL_RPM_VERSION/mysql-wsrep-${MYSQL_RPM_VERSION}/ /etc/yum.repos.d/Codership.repo; \
+  sed -i s/GALERA_RPM_VERSION/galera-${GALERA_RPM_VERSION}/ /etc/yum.repos.d/Codership.repo; \
+  ${DNF} -y install shadow-utils; \
   groupadd -g ${UID} ${USER}; \
   useradd -M -s '/sbin/nologin' -g ${USER} -u ${UID} ${USER}; \
+  rpm --import https://dl.rockylinux.org/pub/rocky/RPM-GPG-KEY-Rocky-${RH_VERSION}; \
   rpm --import http://releases.galeracluster.com/GPG-KEY-galeracluster.com; \
-  microdnf -y install \
+  ${DNF} -y install \
   hostname \
   findutils \
   tzdata \
-  galera-4 \
-  mysql-wsrep-server-${MYSQL_RPM_VERSION}.${OS_VERSION} \
+  galera-${GALERA_RPM_VERSION} \
+  mysql-wsrep-server-${MYSQL_RPM_VERSION}.el${RH_VERSION} \
   ${RSYNC_SST_DEPS} \
   ${DEBUG_UTILS} \
   ; \
-  microdnf clean all; \
+  ${DNF} clean all; \
   rm -rf /var/cache/dnf /var/cache/yum /usr/lib/.build-id; \
-  rm -rf /var/cache/dnf /var/cache/yum /var/lib/mysql
+  rm -rf /var/cache/dnf /var/cache/yum /var/lib/mysql;
 
 RUN set -eu; \
   mkdir -p /var/lib/mysql; \
-  touch /var/log/mysqld.log; \
-  chown mysql:mysql /var/lib/mysql /var/log/mysqld.log
+  chown mysql:mysql /var/lib/mysql; \
+  touch /var/lib/mysql/mysqld.err; \
+  chown mysql:mysql /var/lib/mysql/mysqld.err; \
+  chmod 600 /var/lib/mysql/mysqld.err
 
 ## add gosu for easy step-down from root
 RUN gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \

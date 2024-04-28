@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# ENV variables:
+# ENV variables (see https://hub.docker.com/_/mysql):
 # MYSQL_USER
 # MYSQL_PASSWORD
 # MYSQL_DATABASE
@@ -10,8 +10,11 @@
 # MYSQL_ROOT_HOST
 # MYSQL_ROOT_PASSWORD
 # PRODUCT
-# WSREP_JOIN - a list of node addresses to join in a cluster
+# WSREP_JOIN - a list of node addresses to join
 #
+# Kubernetes only:
+# WSREP_BOOTSTRAP_FROM - index of the node to serve as a seed
+# WSREP_RECOVER_ONLY   - only recover node positions, don't start the cluster
 set -euo pipefail
 #
 [[ ${IMAGEDEBUG:-0} -eq 1 ]] && set -x
@@ -128,6 +131,8 @@ EOF
 start_server() {
   message "${PRODUCT} is starting!"
   message "Running '$@'"
+  # ensure logging to stdout (by itself MySQL logs only to file)
+  tail -n1 -F ${LOG_ERROR} &
   # sleep a bit in case we just crashed and are restarting
   # to allow the remaining nodes to form a new PC in peace
   sleep 3
@@ -135,9 +140,9 @@ start_server() {
   # part of error log to stderr for quicker debugging
   if [ "$(id -u)" = "0" ]; then
     message "Switching to dedicated user 'mysql'"
-    exec gosu mysql "$@" 2>&1 || debug_exit $?
+    exec gosu mysql "$@" 2>&1
   else
-    exec "$@" 2>&1 || debug_exit $?
+    exec "$@" 2>&1
   fi
 }
 #
@@ -160,10 +165,10 @@ validate_cfg "${@}"
 DATADIR="$(get_cfg_value 'datadir' "$@")"
 DATADIR=${DATADIR%/} # strip the trailing '/' if any
 [[ -d ${DATADIR}/mysql ]] && [[ -f ${DATADIR}/mysql.ibd ]] && DATADIR_INITIALIZED=y
-# Make sure error log is stored on persistent volume
+## Make sure error log is stored on persistent volume
 LOG_ERROR="${DATADIR}/mysqld.err"
 set -- "$@" "--log-error=${LOG_ERROR}"
-#
+
 #################################################
 # If database is initialized - recover position #
 #################################################
@@ -172,6 +177,10 @@ if [[ -n ${DATADIR_INITIALIZED:=} ]]; then
   find /usr -name 'wsrep_recover' && \
   WSREP_POSITION_OPTION=$(wsrep_recover) && \
   set -- "$@" "${WSREP_POSITION_OPTION}"
+  if [ -n "${WSREP_RECOVER_ONLY:-}" ]; then
+    message "WSREP_RECOVER_ONLY was given. Waiting for shutdown."
+    while [ 0 ]; do sleep 1; done
+  fi
 fi
 #################################################
 # If WSREP_JOIN is not set but we run in a      #
@@ -199,6 +208,7 @@ if [[ -z ${WSREP_JOIN:=} && -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
     safe_to_bootstrap=$(grep -s 'safe_to_bootstrap' ${state_file} | cut -d ' ' -f 2) || :
   # if there is no state file and my ordinal is 0 then it is the first start
   # of the first node
+  message "Running in Kubernetes: WSREP_BOOTSTRAP_FROM='${WSREP_BOOTSTRAP_FROM}', my_ordinal='${my_ordinal}', safe_to_bootstrap='${safe_to_bootstrap}'"
   [[ -z "${safe_to_bootstrap}" && ${my_ordinal} -eq 0 ]] && safe_to_bootstrap=1
 
   if [[ ${safe_to_bootstrap} -ne 1 ]]; then
@@ -253,7 +263,7 @@ fi
 SOCKET="$(get_cfg_value 'socket' "$@")"
 "$@" --skip-networking --socket="${SOCKET}" --wsrep-provider="none" &
 PID="${!}"
-
+#
 MYSQL_CMD=( ${MYSQL_CLIENT} --protocol=socket -uroot -hlocalhost --socket="${SOCKET}" )
 STARTED=0
 message "${PRODUCT} initialization startup in progress..."

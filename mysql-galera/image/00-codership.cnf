@@ -6,5 +6,4 @@
 wsrep_on=ON
 wsrep_cluster_name="my-cluster"
 wsrep_cluster_address="gcomm://"
-# TODO: this should be changed to clone after clone SST is fixed
 wsrep_sst_method=clone
