@@ -77,12 +77,6 @@ spec:
         - name: datadir
           mountPath: /var/lib/mysql # inside container
           readOnly: false
-#        livenessProbe:
-#          exec:
-#            command: ["mysqladmin", "ping"]
-#          initialDelaySeconds: 30
-#          periodSeconds: 10
-#          timeoutSeconds: 5
         readinessProbe:
           exec:
             command: [ sh, /var/lib/mysql/k8s_readiness_probe ]
@@ -94,7 +88,7 @@ spec:
       name: datadir
     spec:
       accessModes: [ ReadWriteMany ]
-      storageClassName: {{ include "mysql-galera.fullname" . }}-{{ .Values.storageClass }}-sc
+#      storageClassName: {{ include "mysql-galera.fullname" . }}-{{ .Values.storageClass }}-sc
       resources:
         requests:
           storage: {{ .Values.resources.requests.storage }}

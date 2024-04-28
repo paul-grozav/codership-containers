@@ -9,4 +9,4 @@ data:
   MYSQL_USER: 'test'
   MYSQL_PASSWORD: 'testpass'
   MYSQL_ROOT_PASSWORD: 'rootpass'
-  WSREP_BOOTSTRAP_FROM: '999' # to bootstrap from a specific node set it to actual node index
+  WSREP_BOOTSTRAP_FROM: '' # to bootstrap from a specific node set it to actual node index
