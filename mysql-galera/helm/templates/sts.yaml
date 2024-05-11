@@ -34,6 +34,7 @@ spec:
         volumeMounts:
         - name: datadir # same as in containers and volumes
           mountPath: /var/lib/mysql
+          readOnly: false
       containers:
       - name: mysql-galera-node
         image: {{ .Values.image.repository | default "codership/mysql-galera" }}:{{ default .Chart.AppVersion .Values.image.tag }}
@@ -87,7 +88,7 @@ spec:
   - metadata:
       name: datadir
     spec:
-      accessModes: [ ReadWriteMany ]
+      accessModes: [ ReadWriteOnce ]
 #      storageClassName: {{ include "mysql-galera.fullname" . }}-{{ .Values.storageClass }}-sc
       resources:
         requests:

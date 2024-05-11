@@ -13,7 +13,6 @@
 # WSREP_JOIN - a list of node addresses to join
 #
 # Kubernetes only:
-# WSREP_BOOTSTRAP_FROM - index of the node to serve as a seed
 # WSREP_RECOVER_ONLY   - only recover node positions, don't start the cluster
 set -euo pipefail
 #
@@ -194,18 +193,9 @@ if [[ -z ${WSREP_JOIN:=} && -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
   state_file="${DATADIR}/grastate.dat"
 
   safe_to_bootstrap=
-  if [[ -n "${WSREP_BOOTSTRAP_FROM:=}" ]]; then
-    # force bootstrap from a given node
-    [[ ${WSREP_BOOTSTRAP_FROM} -eq ${my_ordinal} ]] \
-      && safe_to_bootstrap=1 || safe_to_bootstrap=0
-    # rewrite state file if present
-    [[ -r ${state_file} ]] && \
-      sed -i "s/safe_to_bootstrap: [0-9]/safe_to_bootstrap: $safe_to_bootstrap/" \
-      ${state_file}
-  fi
 
   [[ -z "${safe_to_bootstrap}" ]] && \
-    safe_to_bootstrap=$(grep -s 'safe_to_bootstrap' ${state_file} | cut -d ' ' -f 2) || :
+    safe_to_bootstrap=$(grep -s 'safe_to_bootstrap' ${state_file} | tr -d "[:blank:]" | cut -d ':' -f 2) || :
   # if there is no state file and my ordinal is 0 then it is the first start
   # of the first node
   message "Running in Kubernetes: WSREP_BOOTSTRAP_FROM='${WSREP_BOOTSTRAP_FROM}', my_ordinal='${my_ordinal}', safe_to_bootstrap='${safe_to_bootstrap}'"

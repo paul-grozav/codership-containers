@@ -7,3 +7,4 @@ wsrep_on=ON
 wsrep_cluster_name="my-cluster"
 wsrep_cluster_address="gcomm://"
 wsrep_sst_method=clone
+wsrep_sync_server_uuid=true
