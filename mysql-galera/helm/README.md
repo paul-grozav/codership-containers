@@ -1,4 +1,4 @@
-# HELM charts for MyDQL/Galera cluster
+# HELM charts for MySQL/Galera cluster
 
 ## Common usage:
 ```
