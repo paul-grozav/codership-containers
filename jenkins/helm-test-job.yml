@@ -1,0 +1,11 @@
+- job:
+    name: helm-test-job
+    project-type: pipeline
+    sandbox: true
+    pipeline-scm:
+      scm:
+        - git:
+            url: http://github.com/codership/docker
+            clean: true
+      script-path: jenkins/Jenkinsfile
+      lightweight-checkout: true
