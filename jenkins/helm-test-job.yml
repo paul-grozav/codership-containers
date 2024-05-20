@@ -1,0 +1,27 @@
+- job:
+    name: helm-test-job
+    project-type: pipeline
+    parameters:
+    - string:
+        name: RH_VERSION
+        default: '9'
+        description: "RHEL UBI image version"
+    - string:
+        name: MYSQL_RPM_VERSION
+        default: '8.0.36-26.18'
+        description: "MYSQL RPM version"
+    sandbox: true
+    properties:
+      - build-discarder:
+          num-to-keep: 5
+    pipeline-scm:
+      scm:
+        - git:
+            url: https://github.com/codership/docker
+            credentials-id: '4767db11-ae93-4aaf-91f9-3b9c728b5249'
+            branches:
+              - origin/develop
+              - origin/main
+            clean: true
+      script-path: jenkins/Jenkinsfile.groovy
+      lightweight-checkout: true
