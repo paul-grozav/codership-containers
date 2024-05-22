@@ -13,7 +13,10 @@ pipeline {
     stages {
         stage('Prepare'){
             steps {
-                currentBuild.description = env.BRANCH_NAME
+                checkout scm
+                script {
+                    currentBuild.description = "Branch: " + scm.branches[0].name
+                }
             }
         }
         stage('Docker Build') {
