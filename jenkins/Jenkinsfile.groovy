@@ -11,6 +11,9 @@ pipeline {
     }
 
     stages {
+        stage('Prepare'){
+            currentBuild.description = env.BRANCH_NAME
+        }
         stage('Docker Build') {
 
               steps {
