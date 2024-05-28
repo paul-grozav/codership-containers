@@ -1,0 +1,14 @@
+- job:
+    name: helm-test-job
+    project-type: pipeline
+    sandbox: true
+    pipeline-scm:
+      scm:
+        - git:
+            url: http://github.com/codership/containers
+            credentials-id: '4767db11-ae93-4aaf-91f9-3b9c728b5249'
+            branches:
+              - origin/main
+            clean: true
+      script-path: Jenkinsfile.groovy
+      lightweight-checkout: true

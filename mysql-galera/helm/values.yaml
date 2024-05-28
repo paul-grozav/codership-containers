@@ -6,6 +6,8 @@
 # e.g. --set env.WSREP_BOOTSTRAP_FROM="2"
 env: {}
 
+namespace: default # set your desired namespace here
+
 # Never go below 3
 replicas: 3
 
@@ -14,6 +16,16 @@ image:
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
+
+mysql:
+  rootpw: Oohiechohr8xooTh
+  user:
+    name: admin
+    password: 1q2w3e!
+
+
+
+
 
 imagePullSecrets: []
 nameOverride: ""
