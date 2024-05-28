@@ -16,7 +16,7 @@ pipeline {
 
   stages {
 
-    stage('Prepare'){
+    stage('Prepare') {
       steps {
         checkout scm
         script {
@@ -85,7 +85,58 @@ pipeline {
     stage('Helm Installation') {
       steps {
         echo "Testing Helm installation..."
-        sh "helm install mysql-galera-${GIT_TARGET} mysql-galera/helm"
+        sh "helm install mysql-galera-${TAG} mysql-galera/helm"
+        echo "Waiting a bit for manifests to deploy..."
+        sleep(60)
+      }
+    }
+
+    stage('Galera Cluster Test'){
+      steps {
+        echo "Checking Galera Cluster installation"
+        timeout(time: 5, unit: 'MINUTES') {
+          script {
+            while (true) {
+              sh "kubectl get pods"
+              def notReady = sh (
+                              script: "kubectl get pods | grep '0/1' | wc -l",
+                              returnStdout: true
+                              ).trim()
+              if(notReady.toInteger() == 0) {
+                break
+              } else {
+                echo notReady + " pods are not ready yet..."
+              }
+              sleep(30)
+            }
+          }
+        }
+        echo "Checking wsrep status..."
+        script {
+          def root_password = sh (script: "grep rootpw mysql-galera/helm/values.yaml | awk '{print \$NF}'",
+                                  returnStdout: true
+                                 ).trim()
+          def wsrep_status = sh (script: "kubectl exec -ti mysql-galera-${TAG}-0 -- mysql -uroot -pOohiechohr8xooTh -ss -N -e \"SHOW STATUS LIKE 'wsrep_ready'\" 2>/dev/null | tail -n1 | awk '{print \$NF}'",
+                                 returnStdout: true
+                                 ).trim()
+          if(wsrep_status == "ON") {
+            echo "OK, WSREP status is ON"
+          }else{
+            echo "WSREP status is " + wsrep_status
+            echo "Error!"
+            currentBuild.result = 'FAILURE'
+          }
+          def cluster_size = sh (script: "kubectl exec -ti mysql-galera-${TAG}-0 -- mysql -uroot -pOohiechohr8xooTh -ss -N -e \"SHOW STATUS LIKE 'wsrep_cluster_size'\" 2>/dev/null | tail -n1 | awk '{print \$NF}'",
+                                 returnStdout: true
+                                 ).trim()
+          if(cluster_size.toInteger() == 3){
+            echo "OK, all nodes a joined!"
+          } else {
+            echo "WSREP cluster size is " + cluster_size
+            echo "Error!"
+            currentBuild.result = 'FAILURE'
+          }
+        }
       }
     }
 
@@ -96,12 +147,13 @@ pipeline {
       }
     }
 
-    stage ('Cleanup') {
-      steps {
-        sh "minikube delete"
-        sh 'docker rmi -f $image:${TAG}'
-      }
-    }
+  } // stages
 
+  post {
+    always {
+      sh "minikube delete"
+      sh 'docker rmi -f $image:${TAG}'
+    }
   }
+
 }

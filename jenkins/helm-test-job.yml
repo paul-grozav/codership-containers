@@ -1,32 +1,27 @@
-- view:
-    name: Helm
-    type: list
-    regex: 'helm-.*'
-
 - job:
     name: helm-test-job
     project-type: pipeline
-    parameters:
-    - string:
-        name: RH_VERSION
-        default: '9'
-        description: "RHEL UBI image version"
-    - string:
-        name: MYSQL_RPM_VERSION
-        default: '8.0.36-26.18'
-        description: "MYSQL RPM version"
-    - string:
-        name: GIT_TARGET
-        default: 'develop'
-        description: "Branch, Tag or commit hash"
     sandbox: true
     properties:
       - build-discarder:
-          num-to-keep: 5
+          num-to-keep: 10
+    parameters:
+      - string:
+          name: RH_VERSION
+          default: "9"
+          description: "RHEL UBI image version"
+      - string:
+          name: MYSQL_RPM_VERSION
+          default: "8.0.36-26.18"
+          description: "MYSQL RPM version"
+      - string:
+          name: GIT_TARGET
+          default: "develop"
+          description: "Branch, Tag or commit hash"
     pipeline-scm:
       scm:
         - git:
-            url: https://github.com/codership/docker
+            url: git@github.com:codership/containers.git
             credentials-id: '4767db11-ae93-4aaf-91f9-3b9c728b5249'
             branches:
               - ${{GIT_TARGET}}
