@@ -6,7 +6,4 @@ metadata:
 # --set env.NAME=VALUE
 # when starting a cluster from scratch
 data:
-  MYSQL_USER: 'test'
-  MYSQL_PASSWORD: 'testpass'
-  MYSQL_ROOT_PASSWORD: 'rootpass'
   WSREP_BOOTSTRAP_FROM: '' # to bootstrap from a specific node set it to actual node index
