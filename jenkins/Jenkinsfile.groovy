@@ -1,8 +1,19 @@
 #!groovy
 
+def namespace = "default"
+def ipaddress = ""
+def svcport   = 30006
+def root_password = ""
+def mysql_user = "admin"
+def mysql_passwd = ""
+
 pipeline {
 
   agent { label 'docker' }
+
+  options {
+    timeout(time: 10, unit: 'MINUTES')
+  }
 
   environment {
     image = "codership/mysql-galera-test"
@@ -21,7 +32,17 @@ pipeline {
         checkout scm
         script {
           currentBuild.description = "Branch: ${GIT_TARGET}"
+          root_password = sh (script: "grep rootpw mysql-galera/helm/values.yaml | awk '{print \$NF}'",
+                              returnStdout: true
+                          ).trim()
+          mysql_user = sh (script: "grep 'name:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                           returnStdout: true
+                           ).trim()
+          mysql_passwd = sh (script: "grep 'password:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                           returnStdout: true
+                           ).trim()
         }
+        sh "sudo apt-get update; sudo apt-get -y install gawk mysql-client-core-8.0"
         sh '''
             if [[ ! -x /usr/local/bin/helm ]]; then
               wget https://get.helm.sh/helm-${HELM_VER}-linux-amd64.tar.gz
@@ -86,12 +107,12 @@ pipeline {
       steps {
         echo "Testing Helm installation..."
         sh "helm install mysql-galera-${TAG} mysql-galera/helm"
-        echo "Waiting a bit for manifests to deploy..."
-        sleep(60)
+        echo "Waiting for manifests to deploy..."
+        sleep(90)
       }
     }
 
-    stage('Galera Cluster Test'){
+    stage('Galera Cluster Check'){
       steps {
         echo "Checking Galera Cluster installation"
         timeout(time: 5, unit: 'MINUTES') {
@@ -111,12 +132,21 @@ pipeline {
             }
           }
         }
+        script {
+          namespace = sh(script: "grep 'namespace:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                             returnStdout: true
+                             ).trim()
+          def svc_url = sh (script: "minikube service -n " + namespace + " --all --url | tail -n 1 | sed -e 's|http://||g'",
+                            returnStdout: true
+                            ).trim().split(':')
+          ipaddress = svc_url[0]
+          svcport   = svc_url[1]
+          echo "IP address for Galera Cluster service is " + ipaddress + " on port " + svcport
+        }
         echo "Checking wsrep status..."
         script {
-          def root_password = sh (script: "grep rootpw mysql-galera/helm/values.yaml | awk '{print \$NF}'",
-                                  returnStdout: true
-                                 ).trim()
-          def wsrep_status = sh (script: "kubectl exec -ti mysql-galera-${TAG}-0 -- mysql -uroot -pOohiechohr8xooTh -ss -N -e \"SHOW STATUS LIKE 'wsrep_ready'\" 2>/dev/null | tail -n1 | awk '{print \$NF}'",
+
+          def wsrep_status = sh (script: "mysql -h " + ipaddress + " -P " + svcport + " -uroot -p" + root_password + " -ss -N -e \"SHOW STATUS LIKE 'wsrep_ready'\" 2>/dev/null | tail -n1 | awk '{print \$NF}'",
                                  returnStdout: true
                                  ).trim()
           if(wsrep_status == "ON") {
@@ -126,7 +156,7 @@ pipeline {
             echo "Error!"
             currentBuild.result = 'FAILURE'
           }
-          def cluster_size = sh (script: "kubectl exec -ti mysql-galera-${TAG}-0 -- mysql -uroot -pOohiechohr8xooTh -ss -N -e \"SHOW STATUS LIKE 'wsrep_cluster_size'\" 2>/dev/null | tail -n1 | awk '{print \$NF}'",
+          def cluster_size = sh (script: "mysql -h " + ipaddress + " -P " + svcport + " -uroot -p" + root_password + " -ss -N -e \"SHOW STATUS LIKE 'wsrep_cluster_size'\" 2>/dev/null | tail -n1 | awk '{print \$NF}'",
                                  returnStdout: true
                                  ).trim()
           if(cluster_size.toInteger() == 3){
@@ -140,10 +170,35 @@ pipeline {
       }
     }
 
+    stage('Cluster test'){
+      steps {
+        echo "Starting cluster test..."
+
+        echo "Loading data into cluster..."
+        sh "cat jenkins/testdb.sql | mysql -h " + ipaddress + " -P " + svcport + " -uroot -p" + root_password
+
+        echo "Reading data from cluster..."
+        script {
+          def count = sh (script: "mysql -ss -N -h " + ipaddress + " -P " + svcport + " -uroot -p" + root_password + " testdb -e \"SELECT COUNT(*) from myTable\"",
+                          returnStdout: true
+                          ).trim()
+          if(count.toInteger() == 100) {
+            echo "Row count matches!"
+          } else {
+            echo "Row count does not match!"
+            echo "Error!"
+            currentBuild.result = 'FAILURE'
+          }
+          sh "mysql -h " + ipaddress + " -P " + svcport + " -uroot -p" + root_password + " -e \"GRANT ALL PRIVILEGES ON testdb.* to 'admin'@'%'\""
+          sh "mysql -h " + ipaddress + " -P " + svcport + " -u" + mysql_user + " -p" + mysql_passwd + " testdb -e \"SELECT * FROM myTable\""
+        }
+      }
+    }
+
     stage('Helm Uninstall') {
       steps {
         echo "Helm Uninstall"
-        sh "helm uninstall mysql-galera-${GIT_TARGET}"
+        sh "helm uninstall mysql-galera-${TAG}"
       }
     }
 
