@@ -29,7 +29,7 @@ mysql:
   rootpw: Oohiechohr8xooTh # you must set your own password here
   user:
     name: admin # specify account here
-    passwd: 1q2w3e! # and a password for that account
+    passwd: LohP4upho0oephah # and a password for that account
 
 imagePullSecrets: []
 nameOverride: ""

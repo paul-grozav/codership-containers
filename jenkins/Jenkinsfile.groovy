@@ -146,7 +146,7 @@ pipeline {
           }
         }
         script {
-          def svc_url = sh (script: "minikube service -n " + namespace + " --all --url | tail -n 1 | sed -e 's|http://||g'",
+          def svc_url = sh (script: "minikube service -n " + namespace + " ${HELM_PROJECT}-client --url | tail -n 1 | sed -e 's|http://||g'",
                             returnStdout: true
                             ).trim().split(':')
           ipaddress = svc_url[0]
@@ -231,6 +231,8 @@ pipeline {
       sh "kubectl -n " + namespace + " logs ${HELM_PROJECT}-0"
       sh "kubectl -n " + namespace + " logs ${HELM_PROJECT}-1"
       sh "kubectl -n " + namespace + " logs ${HELM_PROJECT}-2"
+      //
+      sh "kubectl -n " + namespace + " get secret regcred -o yaml"
     }
   }
 }
