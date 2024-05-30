@@ -7,22 +7,29 @@
 env: {}
 
 # it's good practice to specify dedicated namespace for application
-namespace: default # set your desired namespace here
+namespace: mysql-galera # set your desired namespace here
 
 # Never go below 3
 replicas: 3
 
 image:
-  repository: codership/mysql-galera
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  registry: docker.io
+  repository: @@REPOSITORY@@
+  pullPolicy: Always
+  tag: "@@IMAGE_TAG@@"
+  digest: ""
+
+imageCredentials:
+  registry: docker.io
+  username: @@USERNAME@@
+  password: @@PASSWORD@@
+  email: info@galeracluster.com
 
 mysql:
-  rootpw: Oohiechohr8xooTh
+  rootpw: Oohiechohr8xooTh # you must set your own password here
   user:
-    name: admin
-    password: 1q2w3e!
+    name: admin # specify account here
+    passwd: 1q2w3e! # and a password for that account
 
 imagePullSecrets: []
 nameOverride: ""

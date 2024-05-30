@@ -7,13 +7,15 @@
           num-to-keep: 10
     parameters:
       - string:
-          name: RH_VERSION
-          default: "9"
-          description: "RHEL UBI image version"
-      - string:
           name: MYSQL_RPM_VERSION
           default: "8.0.36-26.18"
           description: "MYSQL RPM version"
+      - choice:
+          name: REPOSITORY
+          choices:
+            - "codership/mysql-galera-test"
+            - "codership/mysql-galera"
+          description: "Devel or public repository"
       - string:
           name: GIT_TARGET
           default: "develop"

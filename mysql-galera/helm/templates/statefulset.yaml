@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ include "mysql-galera.fullname" . }}
+  namespace: {{ .Values.namespace | default "default" }}
   labels:
     app: mysql-galera-app
     #tier: dbms
@@ -37,8 +38,8 @@ spec:
           readOnly: false
       containers:
       - name: mysql-galera-node
-        image: {{ .Values.image.repository | default "codership/mysql-galera" }}:{{ default .Chart.AppVersion .Values.image.tag }}
-        imagePullPolicy: Always
+        image: {{ template "mysql-galera.image" . }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         resources:
           requests:
             memory: {{ .Values.resources.requests.memory }}

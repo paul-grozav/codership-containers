@@ -4,6 +4,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ include "mysql-galera.fullname" . }}-minikube-sc
+  namespace: {{ .Values.namespace | default "default" }}
 provisioner: k8s.io/minikube-hostpath
 volumeBindingMode: Immediate
 reclaimPolicy: Retain

@@ -1,11 +1,15 @@
 #!groovy
 
-def namespace = "default"
+def namespace = ""
 def ipaddress = ""
 def svcport   = 30006
 def root_password = ""
-def mysql_user = "admin"
+def mysql_user = ""
 def mysql_passwd = ""
+
+/*
+
+*/
 
 pipeline {
 
@@ -16,13 +20,12 @@ pipeline {
   }
 
   environment {
-    image = "codership/mysql-galera-test"
     RH_VERSION = "9"
-    TAG="${GIT_TARGET}"
     DOCKERHUBCREDS = credentials('DockerHub')
     HELM_VER="v3.15.0"
     KUBECTL_VER="v1.30.1"
     HELM_PROJECT="mysql-galera"
+    IMAGE_TAG = "8.0.36"
   }
 
   stages {
@@ -32,15 +35,25 @@ pipeline {
         checkout scm
         script {
           currentBuild.description = "Branch: ${GIT_TARGET}"
-          root_password = sh (script: "grep rootpw mysql-galera/helm/values.yaml | awk '{print \$NF}'",
+
+          if(env.REPOSITORY == "codership/mysql-galera-test") {
+            env.TAG = "develop"
+          } else {
+            env.TAG = env.IMAGE_TAG
+          }
+
+          root_password = sh (script: "grep rootpw mysql-galera/helm/values.yaml | awk '{print \$2}'",
                               returnStdout: true
                           ).trim()
-          mysql_user = sh (script: "grep 'name:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+          mysql_user = sh (script: "grep '[[:blank:]]name:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
                            returnStdout: true
                            ).trim()
-          mysql_passwd = sh (script: "grep 'password:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+          mysql_passwd = sh (script: "grep 'passwd:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
                            returnStdout: true
                            ).trim()
+          namespace = sh(script: "grep 'namespace:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                             returnStdout: true
+                             ).trim()
         }
         sh "sudo apt-get update; sudo apt-get -y install gawk mysql-client-core-8.0"
         sh '''
@@ -84,8 +97,8 @@ pipeline {
             docker build \
               --build-arg RH_VERSION=${RH_VERSION} \
               --build-arg MYSQL_RPM_VERSION=${MYSQL_RPM_VERSION} \
-              -t $image:${TAG} -f mysql-galera/image/Dockerfile mysql-galera/image
-            docker push $image:${TAG}
+              -t ${REPOSITORY}:${TAG} -f mysql-galera/image/Dockerfile mysql-galera/image
+            docker push ${REPOSITORY}:${TAG}
             '''
       }
     }
@@ -95,18 +108,18 @@ pipeline {
         echo "Preparing Minikube..."
         sh "minikube delete"
         sh "minikube start"
-        sh '''
-          kubectl create secret docker-registry regcred \
-            --docker-username=${DOCKERHUBCREDS_USR} \
-            --docker-password=${DOCKERHUBCREDS_PSW}
-           '''
       }
     }
 
     stage('Helm Installation') {
       steps {
         echo "Testing Helm installation..."
-        sh "helm install mysql-galera-${TAG} mysql-galera/helm"
+        sh "sed -i \"s:@@USERNAME@@:${DOCKERHUBCREDS_USR}:g\" mysql-galera/helm/values.yaml"
+        sh "sed -i \"s:@@PASSWORD@@:${DOCKERHUBCREDS_PSW}:g\" mysql-galera/helm/values.yaml"
+        sh "sed -i \"s:@@REPOSITORY@@:${REPOSITORY}:g\" mysql-galera/helm/values.yaml"
+        sh "sed -i \"s:@@IMAGE_TAG@@:${TAG}:g\" mysql-galera/helm/values.yaml"
+        sh "cat mysql-galera/helm/values.yaml"
+        sh "helm install ${HELM_PROJECT} mysql-galera/helm"
         echo "Waiting for manifests to deploy..."
         sleep(90)
       }
@@ -118,9 +131,9 @@ pipeline {
         timeout(time: 5, unit: 'MINUTES') {
           script {
             while (true) {
-              sh "kubectl get pods"
+              sh "kubectl -n " + namespace + " get pods"
               def notReady = sh (
-                              script: "kubectl get pods | grep '0/1' | wc -l",
+                              script: "kubectl -n " + namespace + " get pods | grep '0/1' | wc -l",
                               returnStdout: true
                               ).trim()
               if(notReady.toInteger() == 0) {
@@ -133,9 +146,6 @@ pipeline {
           }
         }
         script {
-          namespace = sh(script: "grep 'namespace:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
-                             returnStdout: true
-                             ).trim()
           def svc_url = sh (script: "minikube service -n " + namespace + " --all --url | tail -n 1 | sed -e 's|http://||g'",
                             returnStdout: true
                             ).trim().split(':')
@@ -182,6 +192,7 @@ pipeline {
           def count = sh (script: "mysql -ss -N -h " + ipaddress + " -P " + svcport + " -uroot -p" + root_password + " testdb -e \"SELECT COUNT(*) from myTable\"",
                           returnStdout: true
                           ).trim()
+          // test data contains 100 rows!
           if(count.toInteger() == 100) {
             echo "Row count matches!"
           } else {
@@ -198,17 +209,28 @@ pipeline {
     stage('Helm Uninstall') {
       steps {
         echo "Helm Uninstall"
-        sh "helm uninstall mysql-galera-${TAG}"
+        sh "helm uninstall ${HELM_PROJECT}"
+      }
+    }
+
+    stage('Cleanup') {
+      steps {
+        sh "minikube delete"
+        sh "docker rmi -f ${REPOSITORY}:${TAG} ||:"
       }
     }
 
   } // stages
 
   post {
-    always {
-      sh "minikube delete"
-      sh 'docker rmi -f $image:${TAG}'
+    aborted {
+      sh "kubectl -n " + namespace + " describe pod ${HELM_PROJECT}-0"
+      sh "kubectl -n " + namespace + " describe pod ${HELM_PROJECT}-1"
+      sh "kubectl -n " + namespace + " describe pod ${HELM_PROJECT}-2"
+      //
+      sh "kubectl -n " + namespace + " logs ${HELM_PROJECT}-0"
+      sh "kubectl -n " + namespace + " logs ${HELM_PROJECT}-1"
+      sh "kubectl -n " + namespace + " logs ${HELM_PROJECT}-2"
     }
   }
-
 }
