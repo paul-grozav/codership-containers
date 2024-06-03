@@ -1,6 +1,5 @@
 #!groovy
 
-def namespace = ""
 def ipaddress = ""
 def svcport   = 30006
 def root_password = ""
@@ -51,10 +50,8 @@ pipeline {
           mysql_passwd = sh (script: "grep 'passwd:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
                            returnStdout: true
                            ).trim()
-          namespace = sh(script: "grep 'namespace:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
-                             returnStdout: true
-                             ).trim()
         }
+
         sh "sudo apt-get update; sudo apt-get -y install gawk mysql-client-core-8.0"
         sh '''
             if [[ ! -x /usr/local/bin/helm ]]; then
@@ -119,7 +116,7 @@ pipeline {
         sh "sed -i \"s:@@REPOSITORY@@:${REPOSITORY}:g\" mysql-galera/helm/values.yaml"
         sh "sed -i \"s:@@IMAGE_TAG@@:${TAG}:g\" mysql-galera/helm/values.yaml"
         sh "cat mysql-galera/helm/values.yaml"
-        sh "helm install ${HELM_PROJECT} mysql-galera/helm"
+        sh "helm install ${HELM_PROJECT} mysql-galera/helm --namespace ${HELM_PROJECT} --create-namespace"
         echo "Waiting for manifests to deploy..."
         sleep(90)
       }
@@ -131,9 +128,9 @@ pipeline {
         timeout(time: 5, unit: 'MINUTES') {
           script {
             while (true) {
-              sh "kubectl -n " + namespace + " get pods"
+              sh "kubectl -n ${HELM_PROJECT} get pods"
               def notReady = sh (
-                              script: "kubectl -n " + namespace + " get pods | grep '0/1' | wc -l",
+                              script: "kubectl -n ${HELM_PROJECT} get pods | grep '0/1' | wc -l",
                               returnStdout: true
                               ).trim()
               if(notReady.toInteger() == 0) {
@@ -146,7 +143,7 @@ pipeline {
           }
         }
         script {
-          def svc_url = sh (script: "minikube service -n " + namespace + " ${HELM_PROJECT}-client --url | tail -n 1 | sed -e 's|http://||g'",
+          def svc_url = sh (script: "minikube service -n ${HELM_PROJECT} ${HELM_PROJECT}-client --url | tail -n 1 | sed -e 's|http://||g'",
                             returnStdout: true
                             ).trim().split(':')
           ipaddress = svc_url[0]
@@ -224,15 +221,15 @@ pipeline {
 
   post {
     aborted {
-      sh "kubectl -n " + namespace + " describe pod ${HELM_PROJECT}-0"
-      sh "kubectl -n " + namespace + " describe pod ${HELM_PROJECT}-1"
-      sh "kubectl -n " + namespace + " describe pod ${HELM_PROJECT}-2"
+      sh "kubectl -n ${HELM_PROJECT} describe pod ${HELM_PROJECT}-0"
+      sh "kubectl -n ${HELM_PROJECT} describe pod ${HELM_PROJECT}-1"
+      sh "kubectl -n ${HELM_PROJECT} describe pod ${HELM_PROJECT}-2"
       //
-      sh "kubectl -n " + namespace + " logs ${HELM_PROJECT}-0"
-      sh "kubectl -n " + namespace + " logs ${HELM_PROJECT}-1"
-      sh "kubectl -n " + namespace + " logs ${HELM_PROJECT}-2"
+      sh "kubectl -n ${HELM_PROJECT} logs ${HELM_PROJECT}-0"
+      sh "kubectl -n ${HELM_PROJECT} logs ${HELM_PROJECT}-1"
+      sh "kubectl -n ${HELM_PROJECT} logs ${HELM_PROJECT}-2"
       //
-      sh "kubectl -n " + namespace + " get secret regcred -o yaml"
+      sh "kubectl -n ${HELM_PROJECT} get secret regcred -o yaml"
     }
   }
 }

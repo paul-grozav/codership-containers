@@ -6,9 +6,6 @@
 # e.g. --set env.WSREP_BOOTSTRAP_FROM="2"
 env: {}
 
-# it's good practice to specify dedicated namespace for application
-namespace: mysql-galera # set your desired namespace here
-
 # Never go below 3
 replicas: 3
 
