@@ -162,8 +162,8 @@ fi
 message "Validating configuration..."
 validate_cfg "${@}"
 DATADIR="$(get_cfg_value 'datadir' "$@")"
-DATADIR=${DATADIR%/} # strip the trailing '/' if any
-[[ -d ${DATADIR}/mysql ]] && [[ -f ${DATADIR}/mysql.ibd ]] && DATADIR_INITIALIZED=y
+DATADIR="${DATADIR%/}" # strip the trailing '/' if any
+[[ -d "${DATADIR}/mysql" ]] && [[ -f "${DATADIR}/mysql.ibd" ]] && DATADIR_INITIALIZED=y
 ## Make sure error log is stored on persistent volume
 LOG_ERROR="${DATADIR}/mysqld.err"
 set -- "$@" "--log-error=${LOG_ERROR}"
@@ -171,7 +171,7 @@ set -- "$@" "--log-error=${LOG_ERROR}"
 #################################################
 # If database is initialized - recover position #
 #################################################
-if [[ -n ${DATADIR_INITIALIZED:=} ]]; then
+if [[ -n "${DATADIR_INITIALIZED:=}" ]]; then
   message "Recovering data directory..."
   find /usr -name 'wsrep_recover' && \
   WSREP_POSITION_OPTION=$(wsrep_recover) && \
@@ -186,7 +186,7 @@ fi
 # Kubernetes pod then assume StatefulSet and    #
 # construct WSREP_JOIN ourselves                #
 #################################################
-if [[ -z ${WSREP_JOIN:=} && -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
+if [[ -z "${WSREP_JOIN:=}" && -n "${KUBERNETES_SERVICE_HOST:=}" ]]; then
   IFS='.'; my_fqdn=($(hostname -f)); unset IFS
   my_name=${my_fqdn[0]}
   my_ordinal=${my_name##*-}
@@ -211,14 +211,14 @@ if [[ -z ${WSREP_JOIN:=} && -n ${KUBERNETES_SERVICE_HOST:=} ]]; then
     for i in $(seq 0 ${max_ordinal}); do
       if [[ $i -ne ${my_ordinal} ]]; then
         node_name="${base_name}-${i}.${subdomain}"
-        [[ -z ${WSREP_JOIN} ]] && WSREP_JOIN="${node_name}" || WSREP_JOIN+=",${node_name}"
+        [[ -z "${WSREP_JOIN}" ]] && WSREP_JOIN="${node_name}" || WSREP_JOIN+=",${node_name}"
       fi
     done
   fi
   message "Running in Kubernetes: WSREP_JOIN=${WSREP_JOIN}, MEM_REQUEST=${MEM_REQUEST}, MEM_LIMIT=${MEM_LIMIT}"
 fi
 #
-if [[ -n ${WSREP_JOIN} ]]; then
+if [[ -n "${WSREP_JOIN}" ]]; then
   set -- "$@" "--wsrep-cluster-address=gcomm://${WSREP_JOIN}"
 else
   set -- "$@" "--wsrep-new-cluster"
@@ -229,7 +229,7 @@ fi
 # initialization and start right away - we'll   #
 # be getting state transfer anyways             #
 #################################################
-if [[ -n ${WSREP_JOIN} || -n ${DATADIR_INITIALIZED} ]]; then
+if [[ -n "${WSREP_JOIN}" || -n "${DATADIR_INITIALIZED}" ]]; then
   start $@
 fi
 ################################################
@@ -339,14 +339,14 @@ if [ ! -z "${MYSQL_ROOT_HOST}" -a "${MYSQL_ROOT_HOST}" != 'localhost' ]; then
   # https://unix.stackexchange.com/questions/265149/why-is-set-o-errexit-breaking-this-read-heredoc-expression/265151#265151
   read -r -d '' ROOT_SETUP <<- EOSQL || true
     ${ROOT_SETUP}
-    CREATE USER 'root'@'${MYSQL_ROOT_HOST}' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; 
+    CREATE USER 'root'@'${MYSQL_ROOT_HOST}' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
     GRANT ALL ON *.* TO 'root'@'${MYSQL_ROOT_HOST}' WITH GRANT OPTION; 
 EOSQL
   if [ ! -z "${MYSQL_ONETIME_PASSWORD:=}" ]; then
 #  echo "ALTER USER 'root'@'%' PASSWORD EXPIRE;" | "${MYSQL_CMD[@]}"
     read -r -d '' ROOT_SETUP <<- EOSQL || true
     ${ROOT_SETUP}
-    ALTER USER 'root'@'${MYSQL_ROOT_HOST}' PASSWORD EXPIRE; 
+    ALTER USER 'root'@'${MYSQL_ROOT_HOST}' PASSWORD EXPIRE;
 EOSQL
   fi
 fi
@@ -356,7 +356,7 @@ if [[ "${MYSQL_ROOT_PASSWORD}" != EMPTY ]]; then
   read -r -d '' ROOT_SETUP <<- EOSQL || true
     ${ROOT_SETUP}
     GRANT ALL ON *.* TO 'root'@'localhost' WITH GRANT OPTION; 
-    ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'; 
+    ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
 EOSQL
 fi
 read -r -d '' ROOT_SETUP <<- EOSQL || true
