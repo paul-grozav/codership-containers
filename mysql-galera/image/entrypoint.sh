@@ -275,7 +275,7 @@ if [[ "${MYSQL_INITDB_TZINFO}" -eq 1 ]]; then
   # sed is for https://bugs.mysql.com/bug.php?id=20545
   ${MYSQL_TZINFOTOSQL} /usr/share/zoneinfo \
   | sed 's/Local time zone must be set--see zic manual page/FCTY/' \
-  | "${MYSQL_CMD[@]}" ${MYSQL_DB}
+  | "${MYSQL_CMD[@]}" ${MYSQL_DB} || debug_exit $?
 fi
 #
 file_env 'MYSQL_DATABASE'

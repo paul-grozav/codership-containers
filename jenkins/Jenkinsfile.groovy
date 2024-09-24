@@ -43,16 +43,6 @@ pipeline {
           } else {
             env.TAG = env.IMAGE_TAG
           }
-
-          root_password = sh (script: "grep rootpw mysql-galera/helm/values.yaml | awk '{print \$2}'",
-                              returnStdout: true
-                          ).trim()
-          mysql_user = sh (script: "grep '[[:blank:]]name:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
-                           returnStdout: true
-                           ).trim()
-          mysql_passwd = sh (script: "grep 'passwd:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
-                           returnStdout: true
-                           ).trim()
         }
 
         sh "sudo apt-get update; sudo apt-get -y install gawk mysql-client-core-8.0"
@@ -95,6 +85,7 @@ pipeline {
       steps {
         sh '''
             docker build \
+              --no-cache --pull \
               --build-arg RH_VERSION=${RH_VERSION} \
               --build-arg MYSQL_RPM_VERSION=${MYSQL_RPM_VERSION} \
               -t ${REPOSITORY}:${TAG} -f mysql-galera/image/Dockerfile mysql-galera/image
@@ -156,6 +147,19 @@ pipeline {
           svcport   = svc_url[1]
           echo "IP address for Galera Cluster service is " + ipaddress + " on port " + svcport
         }
+
+        script {
+          root_password = sh (script: "grep rootpw mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                              returnStdout: true
+                              ).trim()
+          mysql_user = sh (script: "grep '[[:blank:]]name:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                           returnStdout: true
+                           ).trim()
+          mysql_passwd = sh (script: "grep 'passwd:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                             returnStdout: true
+                             ).trim()
+        }
+
         echo "Checking wsrep status..."
         script {
 
@@ -212,7 +216,7 @@ pipeline {
     stage('Helm Uninstall') {
       steps {
         echo "Helm Uninstall"
-        sh "helm uninstall ${HELM_PROJECT}"
+        sh "helm uninstall ${HELM_PROJECT} --namespace ${HELM_PROJECT}"
       }
     }
 
