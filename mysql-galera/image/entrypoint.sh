@@ -198,7 +198,7 @@ if [[ -z "${WSREP_JOIN:=}" && -n "${KUBERNETES_SERVICE_HOST:=}" ]]; then
     safe_to_bootstrap=$(grep -s 'safe_to_bootstrap' ${state_file} | tr -d "[:blank:]" | cut -d ':' -f 2) || :
   # if there is no state file and my ordinal is 0 then it is the first start
   # of the first node
-  message "Running in Kubernetes: WSREP_BOOTSTRAP_FROM='${WSREP_BOOTSTRAP_FROM}', my_ordinal='${my_ordinal}', safe_to_bootstrap='${safe_to_bootstrap}'"
+  message "Running in Kubernetes: my_ordinal='${my_ordinal}', safe_to_bootstrap='${safe_to_bootstrap}'"
   [[ -z "${safe_to_bootstrap}" && ${my_ordinal} -eq 0 ]] && safe_to_bootstrap=1
 
   if [[ ${safe_to_bootstrap} -ne 1 ]]; then
