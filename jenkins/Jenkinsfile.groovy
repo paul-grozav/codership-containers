@@ -24,7 +24,10 @@ pipeline {
     HELM_VER="v3.15.0"
     KUBECTL_VER="v1.30.1"
     HELM_PROJECT="mysql-galera"
-    IMAGE_TAG = "8.0.36"
+    IMAGE_TAG = "8.0.39"
+    MYSQL_ROOT_PASSWORD="Oohiechohr8xooTh"
+    MYSQL_USER="admin"
+    MYSQL_USER_PASSWORD="LohP4upho0oephah"
   }
 
   stages {
@@ -115,6 +118,9 @@ pipeline {
         sh "sed -i \"s:@@PASSWORD@@:${DOCKERHUBCREDS_PSW}:g\" mysql-galera/helm/values.yaml"
         sh "sed -i \"s:@@REPOSITORY@@:${REPOSITORY}:g\" mysql-galera/helm/values.yaml"
         sh "sed -i \"s:@@IMAGE_TAG@@:${TAG}:g\" mysql-galera/helm/values.yaml"
+        sh "sed -i \"s:@@MYSQL_ROOT_PASSWORD@@:${MYSQL_ROOT_PASSWORD}:g\" mysql-galera/helm/values.yaml"
+        sh "sed -i \"s:@@MYSQL_USER@@:${MYSQL_USER}:g\" mysql-galera/helm/values.yaml"
+        sh "sed -i \"s:@@MYSQL_USER_PASSWORD@@:${MYSQL_USER_PASSWORD}:g\" mysql-galera/helm/values.yaml"
         sh "cat mysql-galera/helm/values.yaml"
         sh "helm install ${HELM_PROJECT} mysql-galera/helm --namespace ${HELM_PROJECT} --create-namespace"
         echo "Waiting for manifests to deploy..."
