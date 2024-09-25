@@ -19,7 +19,7 @@ pipeline {
   }
 
   environment {
-    RH_VERSION = "9"
+    RH_VERSION = "8"
     DOCKERHUBCREDS = credentials('DockerHub')
     HELM_VER="v3.15.0"
     KUBECTL_VER="v1.30.1"

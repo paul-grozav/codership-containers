@@ -1,5 +1,5 @@
 ARG RH_VERSION=
-FROM redhat/ubi${RH_VERSION}-minimal
+FROM redhat/ubi${RH_VERSION}
 
 LABEL org.opencontainers.image.authors="info@galeracluster.com"
 
@@ -14,7 +14,7 @@ ARG RSYNC_SST_DEPS="rsync lsof which"
 # (later may be useful for mounting volumes)
 ENV USER='mysql'
 ENV UID='1000'
-ENV DNF=microdnf
+ENV DNF=dnf
 
 ADD *.repo /etc/yum.repos.d
 
