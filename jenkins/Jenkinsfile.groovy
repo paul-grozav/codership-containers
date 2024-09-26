@@ -19,12 +19,15 @@ pipeline {
   }
 
   environment {
-    RH_VERSION = "9"
+    RH_VERSION = "8"
     DOCKERHUBCREDS = credentials('DockerHub')
     HELM_VER="v3.15.0"
     KUBECTL_VER="v1.30.1"
     HELM_PROJECT="mysql-galera"
-    IMAGE_TAG = "8.0.36"
+    IMAGE_TAG = "8.0.39"
+    MYSQL_ROOT_PASSWORD="Oohiechohr8xooTh"
+    MYSQL_USER="admin"
+    MYSQL_USER_PASSWORD="LohP4upho0oephah"
   }
 
   stages {
@@ -40,16 +43,6 @@ pipeline {
           } else {
             env.TAG = env.IMAGE_TAG
           }
-
-          root_password = sh (script: "grep rootpw mysql-galera/helm/values.yaml | awk '{print \$2}'",
-                              returnStdout: true
-                          ).trim()
-          mysql_user = sh (script: "grep '[[:blank:]]name:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
-                           returnStdout: true
-                           ).trim()
-          mysql_passwd = sh (script: "grep 'passwd:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
-                           returnStdout: true
-                           ).trim()
         }
 
         sh "sudo apt-get update; sudo apt-get -y install gawk mysql-client-core-8.0"
@@ -92,6 +85,7 @@ pipeline {
       steps {
         sh '''
             docker build \
+              --no-cache --pull \
               --build-arg RH_VERSION=${RH_VERSION} \
               --build-arg MYSQL_RPM_VERSION=${MYSQL_RPM_VERSION} \
               -t ${REPOSITORY}:${TAG} -f mysql-galera/image/Dockerfile mysql-galera/image
@@ -115,6 +109,9 @@ pipeline {
         sh "sed -i \"s:@@PASSWORD@@:${DOCKERHUBCREDS_PSW}:g\" mysql-galera/helm/values.yaml"
         sh "sed -i \"s:@@REPOSITORY@@:${REPOSITORY}:g\" mysql-galera/helm/values.yaml"
         sh "sed -i \"s:@@IMAGE_TAG@@:${TAG}:g\" mysql-galera/helm/values.yaml"
+        sh "sed -i \"s:@@MYSQL_ROOT_PASSWORD@@:${MYSQL_ROOT_PASSWORD}:g\" mysql-galera/helm/values.yaml"
+        sh "sed -i \"s:@@MYSQL_USER@@:${MYSQL_USER}:g\" mysql-galera/helm/values.yaml"
+        sh "sed -i \"s:@@MYSQL_USER_PASSWORD@@:${MYSQL_USER_PASSWORD}:g\" mysql-galera/helm/values.yaml"
         sh "cat mysql-galera/helm/values.yaml"
         sh "helm install ${HELM_PROJECT} mysql-galera/helm --namespace ${HELM_PROJECT} --create-namespace"
         echo "Waiting for manifests to deploy..."
@@ -150,6 +147,19 @@ pipeline {
           svcport   = svc_url[1]
           echo "IP address for Galera Cluster service is " + ipaddress + " on port " + svcport
         }
+
+        script {
+          root_password = sh (script: "grep rootpw mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                              returnStdout: true
+                              ).trim()
+          mysql_user = sh (script: "grep '[[:blank:]]name:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                           returnStdout: true
+                           ).trim()
+          mysql_passwd = sh (script: "grep 'passwd:' mysql-galera/helm/values.yaml | awk '{print \$2}'",
+                             returnStdout: true
+                             ).trim()
+        }
+
         echo "Checking wsrep status..."
         script {
 
@@ -206,7 +216,7 @@ pipeline {
     stage('Helm Uninstall') {
       steps {
         echo "Helm Uninstall"
-        sh "helm uninstall ${HELM_PROJECT}"
+        sh "helm uninstall ${HELM_PROJECT} --namespace ${HELM_PROJECT}"
       }
     }
 

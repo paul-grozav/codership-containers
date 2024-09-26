@@ -3,7 +3,7 @@
 # Declare variables to be passed into your templates.
 
 # Environment for the image (to be set at command line, overrides settings in config map)
-# e.g. --set env.WSREP_BOOTSTRAP_FROM="2"
+# e.g. --set env.MYSQL_USER="ggg"
 env: {}
 
 # Never go below 3
@@ -11,22 +11,22 @@ replicas: 3
 
 image:
   registry: docker.io
-  repository: @@REPOSITORY@@
+  repository: "@@REPOSITORY@@"
   pullPolicy: Always
   tag: "@@IMAGE_TAG@@"
   digest: ""
 
 imageCredentials:
   registry: docker.io
-  username: @@USERNAME@@
-  password: @@PASSWORD@@
+  username: "@@USERNAME@@"
+  password: "@@PASSWORD@@"
   email: info@galeracluster.com
 
 mysql:
-  rootpw: Oohiechohr8xooTh # you must set your own password here
+  rootpw: "@@MYSQL_ROOT_PASSWORD@@" # will be used only in the case of database initialization
   user:
-    name: admin # specify account here
-    passwd: LohP4upho0oephah # and a password for that account
+    name: "@@MYSQL_USER@@" # this account will be used for read-only liveness checks
+    passwd: "@@MYSQL_USER_PASSWORD@@" # and a password for that account
 
 imagePullSecrets: []
 nameOverride: ""
@@ -38,6 +38,7 @@ resources:
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube.
   # Below are bare minimums, anything less is not guaranteed to work.
+  # NOTE: make sure that your worker k8s nodes have more RAM than requested here
   requests:
     memory: 4Gi # 4G is the minimum for MySQL 8.0 to properly function
     cpu: 1
@@ -54,4 +55,3 @@ autoscaling:
   minReplicas: 3
   maxReplicas: 100
   targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
