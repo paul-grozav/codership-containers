@@ -1,25 +1,19 @@
 - job:
-    name: helm-test-job
+    name: helm-release-job
     project-type: pipeline
+    node: built-in
     sandbox: true
     properties:
       - build-discarder:
           num-to-keep: 10
     parameters:
       - string:
-          name: MYSQL_RPM_VERSION
-          default: "8.0.39-26.20"
-          description: "MYSQL RPM version"
-      - choice:
-          name: REPOSITORY
-          choices:
-            - "codership/mysql-galera-test"
-            - "codership/mysql-galera"
-          description: "Devel or public repository"
-      - string:
           name: GIT_TARGET
-          default: "develop"
+          default: "main"
           description: "Branch, Tag or commit hash"
+    triggers:
+      - pollscm:
+          cron: "@daily"
     pipeline-scm:
       scm:
         - git:
@@ -28,5 +22,5 @@
             branches:
               - ${{GIT_TARGET}}
             clean: true
-      script-path: .jenkins/helm-test-job.groovy
-      lightweight-checkout: true
+      script-path: .jenkins/helm-release-job.groovy
+      lightweight-checkout: false

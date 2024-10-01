@@ -35,7 +35,7 @@ helm upgrade --reuse-values --set replicas=1 <cluster name> .
 mysql <options> -e "shutdown;"
 helm uninistall <cluster name>
 ```
-This will leave the last pod in the stateful set (0) safe to autoatically bootstrap the cluster from.
+This will leave the last pod in the stateful set (0) safe to automatically bootstrap the cluster from.
 
 ### Force bootstrap from a particular pod
 In case the cluster need to be recovered from scratch (e.g. `helm uninstall` was called), it can be forced to bootstrap from a particular pod. To find which pod to use the cluster can be started in "recover-only" mode:
