@@ -28,5 +28,5 @@
             branches:
               - ${{GIT_TARGET}}
             clean: true
-      script-path: jenkins/Jenkinsfile.groovy
+      script-path: .jenkins/helm-test-job.groovy
       lightweight-checkout: true
