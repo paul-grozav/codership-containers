@@ -1,6 +1,6 @@
 //
 version = "8.0.39"
-directory = "mysql-galera-" + version
+directory = "mysql-galera-" + version + "-" + env.RELEASENUM
 tarball = directory + ".tar.gz"
 //
 pipeline {

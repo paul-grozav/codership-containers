@@ -11,6 +11,10 @@
           name: GIT_TARGET
           default: "main"
           description: "Branch, Tag or commit hash"
+      - string:
+          name: RELEASENUM
+          default: "1"
+          description: "Package version"
     triggers:
       - pollscm:
           cron: "@daily"
