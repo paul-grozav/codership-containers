@@ -21,7 +21,7 @@ pipeline {
                     --rootpw "@@SET_ME@@" \
                     --dbuser "@@SET_ME@@" \
                     --userpw "@@SET_ME@@"
-              rm -vf values.tmpl set_test_values.sh
+              rm -vf values.tmpl set_values.sh
             popd
             """
       }
