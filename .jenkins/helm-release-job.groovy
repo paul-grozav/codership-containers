@@ -1,18 +1,20 @@
 //
-version = "8.0.39"
-directory = "mysql-galera-" + version + "-" + env.RELEASENUM
-tarball = directory + ".tar.gz"
-//
 pipeline {
   agent { label 'srcbuild' }
   stages {
     stage ('Prepare') {
       steps {
-        echo "Making Helm release from git:" + env.GIT_BRANCH
+        checkout scm
         script{
+          //
+          //commitHash = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
           version = sh(script: "grep appVersion mysql-galera/helm/Chart.yaml | awk '{print \$NF}' | sed -e 's:\"::g'",
-                       returnStdout: true)
+                       returnStdout: true).trim()
+          directory = "mysql-galera-" + version + "-" + env.RELEASENUM
+          tarball = directory + ".tar.gz"
+          currentBuild.description = "Branch/rev: $GIT_COMMIT"
         }
+        echo "Making Helm release from git: $GIT_COMMIT"
         sh """
             set -x
             cp -a mysql-galera/helm $directory

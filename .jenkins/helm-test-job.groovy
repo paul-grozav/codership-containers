@@ -105,6 +105,13 @@ pipeline {
     stage('Helm Installation') {
       steps {
         echo "Testing Helm installation..."
+        sh """
+          pushd mysql-galera/helm
+            if [[ ! -f values.yaml ]]; then
+              cp -v values.tmpl values.yaml
+            fi
+          popd
+          """
         sh "sed -i \"s:@@USERNAME@@:${DOCKERHUBCREDS_USR}:g\" mysql-galera/helm/values.yaml"
         sh "sed -i \"s:@@PASSWORD@@:${DOCKERHUBCREDS_PSW}:g\" mysql-galera/helm/values.yaml"
         sh "sed -i \"s:@@REPOSITORY@@:${REPOSITORY}:g\" mysql-galera/helm/values.yaml"
@@ -192,7 +199,7 @@ pipeline {
         echo "Starting cluster test..."
 
         echo "Loading data into cluster..."
-        sh "cat jenkins/testdb.sql | mysql -h " + ipaddress + " -P " + svcport + " -uroot -p" + root_password
+        sh "cat .jenkins/testdb.sql | mysql -h " + ipaddress + " -P " + svcport + " -uroot -p" + root_password
 
         echo "Reading data from cluster..."
         script {
@@ -230,6 +237,10 @@ pipeline {
   } // stages
 
   post {
+    success {
+      build job: 'helm-release-job', wait: false,
+        parameters: [string(name: 'GIT_TARGET', value: env.GIT_COMMIT )]
+    }
     aborted {
       sh "kubectl -n ${HELM_PROJECT} describe pod ${HELM_PROJECT}-0"
       sh "kubectl -n ${HELM_PROJECT} describe pod ${HELM_PROJECT}-1"
