@@ -11,7 +11,7 @@ pipeline {
           version = sh(script: "grep appVersion mysql-galera/helm/Chart.yaml | awk '{print \$NF}' | sed -e 's:\"::g'",
                        returnStdout: true).trim()
           directory = "mysql-galera-" + version + "-" + env.RELEASENUM
-          tarball = directory + ".tar.gz"
+          tarball = directory + ".tgz"
           currentBuild.description = "Branch/rev: $GIT_COMMIT"
         }
         echo "Making Helm release from git: $GIT_COMMIT"
