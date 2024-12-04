@@ -7,19 +7,13 @@
           num-to-keep: 10
     parameters:
       - string:
-          name: MYSQL_RPM_VERSION
-          default: "8.0.39-26.20"
-          description: "MYSQL RPM version"
-      - choice:
-          name: REPOSITORY
-          choices:
-            - "codership/mysql-galera-test"
-            - "codership/mysql-galera"
-          description: "Devel or public repository"
-      - string:
           name: GIT_TARGET
-          default: "develop"
+          default: "main"
           description: "Branch, Tag or commit hash"
+      - bool:
+          name: RELEASE
+          default: false
+          description: "Push to release repository instead of test"
     pipeline-scm:
       scm:
         - git:

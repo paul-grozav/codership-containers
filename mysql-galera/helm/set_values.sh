@@ -3,7 +3,7 @@
 set -x
 #
 REPOSITORY="codership/mysql-galera"
-TAG="8.0.39"
+TAG="8.0.40"
 MYSQL_ROOT_PASSWORD="Oohiechohr8xooTh"
 #
 DBUSER="admin"

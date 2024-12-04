@@ -5,7 +5,7 @@ image
 # Usage
 Create `.env` file containing required parameters, e.g.:
 ```
-NODE_IMAGE='codership/mysql-galera-test:8.0.34'
+NODE_IMAGE='codership/mysql-galera-test:8.0.40'
 RUN_AS=1000:100
 
 MYSQL_USER='test'
