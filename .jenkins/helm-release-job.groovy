@@ -12,7 +12,7 @@ pipeline {
                        returnStdout: true).trim()
           directory = "mysql-galera-" + version + "-" + env.RELEASENUM
           tarball = directory + ".tgz"
-          currentBuild.description = "Branch/rev: $GIT_COMMIT"
+          currentBuild.description = "Branch: $GIT_BRANCH\nRev: $GIT_COMMIT"
         }
         echo "Making Helm release from git: $GIT_COMMIT"
         sh """
