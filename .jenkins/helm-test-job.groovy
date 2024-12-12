@@ -24,10 +24,13 @@ pipeline {
     HELM_VER="v3.15.0"
     KUBECTL_VER="v1.30.1"
     HELM_PROJECT="mysql-galera"
-    IMAGE_TAG = "8.0.39"
+    MYSQL_VERSION = "8.0.40"
+    WSREP_VERSION = "26.21"
     MYSQL_ROOT_PASSWORD="Oohiechohr8xooTh"
     MYSQL_USER="admin"
     MYSQL_USER_PASSWORD="LohP4upho0oephah"
+    RELEASE_REPOSITORY="codership/mysql-galera"
+    TEST_REPOSITORY="codership/mysql-galera-test"
   }
 
   stages {
@@ -37,11 +40,11 @@ pipeline {
         checkout scm
         script {
           currentBuild.description = "Branch: ${GIT_TARGET}"
-
-          if(env.REPOSITORY == "codership/mysql-galera-test") {
-            env.TAG = "develop"
+          env.TAG = env.MYSQL_VERSION
+          if (env.RELEASE == "true") {
+            env.REPOSITORY=env.RELEASE_REPOSITORY
           } else {
-            env.TAG = env.IMAGE_TAG
+            env.REPOSITORY=env.TEST_REPOSITORY
           }
         }
 
@@ -84,6 +87,7 @@ pipeline {
     stage('Docker Image') {
       steps {
         sh '''
+            MYSQL_RPM_VERSION="$MYSQL_VERSION-$WSREP_VERSION"
             docker build \
               --no-cache --pull \
               --build-arg RH_VERSION=${RH_VERSION} \
@@ -239,7 +243,10 @@ pipeline {
   post {
     success {
       build job: 'helm-release-job', wait: false,
-        parameters: [string(name: 'GIT_TARGET', value: env.GIT_COMMIT )]
+        parameters: [
+          string(name: 'GIT_TARGET', value: env.GIT_COMMIT ),
+          booleanParam( name: 'RELEASE', value: env.RELEASE)
+          ]
     }
     aborted {
       sh "kubectl -n ${HELM_PROJECT} describe pod ${HELM_PROJECT}-0"

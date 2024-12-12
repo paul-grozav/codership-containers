@@ -1,6 +1,10 @@
 //
 pipeline {
   agent { label 'srcbuild' }
+  environment {
+    RELEASE_REPOSITORY="codership/mysql-galera"
+    TEST_REPOSITORY="codership/mysql-galera-test"
+  }
   stages {
     stage ('Prepare') {
       steps {
@@ -10,7 +14,16 @@ pipeline {
           //commitHash = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
           version = sh(script: "grep appVersion mysql-galera/helm/Chart.yaml | awk '{print \$NF}' | sed -e 's:\"::g'",
                        returnStdout: true).trim()
-          directory = "mysql-galera-" + version + "-" + env.RELEASENUM
+
+          if (env.RELEASE == "true") {
+            name = "mysql-galera"
+            env.REPOSITORY=env.RELEASE_REPOSITORY
+          } else {
+            name = "mysql-galera-test"
+            env.REPOSITORY=env.TEST_REPOSITORY
+          }
+
+          directory = name + "-" + version + "-" + env.RELEASENUM
           tarball = directory + ".tgz"
           currentBuild.description = "Branch: $GIT_BRANCH\nRev: $GIT_COMMIT"
         }
@@ -20,6 +33,7 @@ pipeline {
             cp -a mysql-galera/helm $directory
             pushd $directory
               ./set_values.sh \
+                    --repo   "$REPOSITORY" \
                     --rootpw "@@SET_ME@@" \
                     --dbuser "@@SET_ME@@" \
                     --userpw "@@SET_ME@@"

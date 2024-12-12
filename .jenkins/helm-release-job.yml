@@ -15,6 +15,10 @@
           name: RELEASENUM
           default: "1"
           description: "Package version"
+      - bool:
+          name: RELEASE
+          default: false
+          description: "Make release tarball instead of test one"
     triggers:
       - pollscm:
           cron: "@daily"
