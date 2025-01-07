@@ -1,5 +1,5 @@
 # This file is for mandatory cluster-specific settings
-# It should override everythhing else
+# It should override everything else
 
 [server]
 #deprecated binlog_format=ROW

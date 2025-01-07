@@ -91,6 +91,10 @@ spec:
         - containerPort: 4444
           name: sst
         volumeMounts:
+        - name: custom-cnf
+          mountPath: /etc/mysql/conf.d/50-custom.cnf
+          subPath: 50-custom.cnf
+          readOnly: true
         - name: datadir
           mountPath: /var/lib/mysql # inside container
           readOnly: false
@@ -100,6 +104,10 @@ spec:
           initialDelaySeconds: 15
           periodSeconds: 2
           timeoutSeconds: 1
+      volumes:
+      - name: custom-cnf
+        configMap:
+          name: custom-cnf
   volumeClaimTemplates:
   - metadata:
       name: datadir
