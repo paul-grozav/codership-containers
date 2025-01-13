@@ -28,6 +28,12 @@ mysql:
     name: "@@MYSQL_USER@@" # this account will be used for read-only liveness checks
     passwd: "@@MYSQL_USER_PASSWORD@@" # and a password for that account
 
+customConfig: |
+  # This is an additional configuration that will be added to the MySQL main configuration 
+  # It may be changed in the values.yaml file
+  [mysqld]
+  character-set-server=utf8mb4
+
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
