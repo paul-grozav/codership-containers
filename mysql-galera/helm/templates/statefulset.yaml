@@ -22,8 +22,10 @@ spec:
         app: mysql-galera-node
         #tier: dbms
     spec: # Pod spec
+    {{- if and (.Values.imageCredentials.username) (.Values.imageCredentials.password) }}
       imagePullSecrets:
       - name: regcred
+    {{- end }}
       initContainers: # this might be minikube/hostpath-specific
       - name: chown-datadir
         image: busybox:latest
