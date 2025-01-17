@@ -25,3 +25,12 @@ kubeVersion: '>=1.21.0'
 # follow Semantic Versioning. They should reflect the version the application is using.
 # It is recommended to use it with quotes.
 appVersion: "8.0.40"
+
+home: "https://galeracluster.com"
+keywords:
+  - mysql
+  - galera
+  - cluster
+sources:
+  - "https://github.com/codership/containers"
+
