@@ -2,16 +2,6 @@
 #
 set -x
 #
-REPOSITORY="codership/mysql-galera"
-TAG="8.0.40"
-MYSQL_ROOT_PASSWORD="Oohiechohr8xooTh"
-#
-DBUSER="admin"
-USER_PW="LohP4upho0oephah"
-#
-DOCKER_USER="${DOCKERHUBCREDS_USR:-}"
-DOCKER_PASSWORD="${DOCKERHUBCREDS_PSW:-}"
-#
 cd $(dirname $0)
 #
 
@@ -19,6 +9,8 @@ if ! test -f values.tmpl; then
   echo "No values template found, exiting"
   exit 1
 fi
+
+. VARIABLES
 
 while [[ $# -gt 0 ]]; do
   case $1 in
