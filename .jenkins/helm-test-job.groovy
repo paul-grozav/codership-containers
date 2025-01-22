@@ -111,16 +111,16 @@ pipeline {
         echo "Testing Helm installation..."
         sh """
           pushd mysql-galera/helm
-            cp -v values.tmpl values.yaml
+            bash -x set_values.sh \
+            --repo ${REPOSITORY} \
+            --tag ${TAG} \
+            --rootpw ${MYSQL_ROOT_PASSWORD} \
+            --dbuser ${MYSQL_USER} \
+            --userpw ${MYSQL_USER_PASSWORD} \
+            --docker-user ${DOCKERHUBCREDS_USR} \
+            --docker-pw ${DOCKERHUBCREDS_PSW}
           popd
           """
-        sh "sed -i \"s:@@USERNAME@@:${DOCKERHUBCREDS_USR}:g\" mysql-galera/helm/values.yaml"
-        sh "sed -i \"s:@@PASSWORD@@:${DOCKERHUBCREDS_PSW}:g\" mysql-galera/helm/values.yaml"
-        sh "sed -i \"s:@@REPOSITORY@@:${REPOSITORY}:g\" mysql-galera/helm/values.yaml"
-        sh "sed -i \"s:@@IMAGE_TAG@@:${TAG}:g\" mysql-galera/helm/values.yaml"
-        sh "sed -i \"s:@@MYSQL_ROOT_PASSWORD@@:${MYSQL_ROOT_PASSWORD}:g\" mysql-galera/helm/values.yaml"
-        sh "sed -i \"s:@@MYSQL_USER@@:${MYSQL_USER}:g\" mysql-galera/helm/values.yaml"
-        sh "sed -i \"s:@@MYSQL_USER_PASSWORD@@:${MYSQL_USER_PASSWORD}:g\" mysql-galera/helm/values.yaml"
         sh "cat mysql-galera/helm/values.yaml"
         sh "helm install ${HELM_PROJECT} mysql-galera/helm --namespace ${HELM_PROJECT} --create-namespace"
         echo "Waiting for manifests to deploy..."
