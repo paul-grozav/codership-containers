@@ -111,9 +111,7 @@ pipeline {
         echo "Testing Helm installation..."
         sh """
           pushd mysql-galera/helm
-            if [[ ! -f values.yaml ]]; then
-              cp -v values.tmpl values.yaml
-            fi
+            cp -v values.tmpl values.yaml
           popd
           """
         sh "sed -i \"s:@@USERNAME@@:${DOCKERHUBCREDS_USR}:g\" mysql-galera/helm/values.yaml"
