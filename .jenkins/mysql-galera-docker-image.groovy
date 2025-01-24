@@ -33,7 +33,7 @@ pipeline {
           }
         }
         sh "sudo apt-get update; sudo apt-get -y install gawk mysql-client-core-8.0"
-        sh "docker login --username ${DOCKERHUBCREDS_USR} --password ${DOCKERHUBCREDS_PSW}"
+        sh 'docker login --username $DOCKERHUBCREDS_USR --password $DOCKERHUBCREDS_PSW'
       }
     }
 
