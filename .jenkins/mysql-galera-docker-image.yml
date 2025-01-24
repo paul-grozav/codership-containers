@@ -1,5 +1,5 @@
 - job:
-    name: helm-test-job
+    name: mysql-galera-docker-image
     project-type: pipeline
     sandbox: true
     properties:
@@ -22,5 +22,5 @@
             branches:
               - ${{GIT_TARGET}}
             clean: true
-      script-path: .jenkins/helm-test-job.groovy
+      script-path: .jenkins/mysql-galera-docker-image.groovy
       lightweight-checkout: true
