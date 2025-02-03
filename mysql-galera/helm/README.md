@@ -33,7 +33,7 @@ Graceful cluster shutdown requires scaling the cluster to one node before `helm 
 ```
 helm upgrade --reuse-values --set replicas=1 <cluster name> .
 mysql <options> -e "shutdown;"
-helm uninistall <cluster name>
+helm uninstall <cluster name>
 ```
 This will leave the last pod in the stateful set (0) safe to automatically bootstrap the cluster from.
 
