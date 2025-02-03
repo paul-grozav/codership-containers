@@ -4,7 +4,7 @@
 ```
 helm install [set values] <cluster name> .
 ```
-see values.yaml for supported/required oprtions.
+see values.yaml for supported/required options.
 
 ### Setting values for Docker image
 On `helm install` you will need to set some environmet variables for the image, e.g.
