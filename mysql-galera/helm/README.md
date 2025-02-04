@@ -4,7 +4,7 @@
 ```
 helm install [set values] <cluster name> .
 ```
-see values.yaml for supported/required oprtions.
+see values.yaml for supported/required options.
 
 ### Setting values for Docker image
 On `helm install` you will need to set some environmet variables for the image, e.g.
@@ -33,7 +33,7 @@ Graceful cluster shutdown requires scaling the cluster to one node before `helm 
 ```
 helm upgrade --reuse-values --set replicas=1 <cluster name> .
 mysql <options> -e "shutdown;"
-helm uninistall <cluster name>
+helm uninstall <cluster name>
 ```
 This will leave the last pod in the stateful set (0) safe to automatically bootstrap the cluster from.
 
