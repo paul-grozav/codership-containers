@@ -64,7 +64,7 @@ uuid: bf6bd3e5-020e-11ef-ae7a-ceb1e82e2567
 seqno:   -1
 safe_to_bootstrap: 0
 ```
-Then run the followwing command:
+Then run the following command:
 ```
 $ kubectl exec <cluster-name>-mysql-galera-2 -- sed -i "s/safe_to_bootstrap:[[:blank:]]*[0-9]/safe_to_bootstrap: 1/" /var/lib/mysql/grastate.dat
 ```
