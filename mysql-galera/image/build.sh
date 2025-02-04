@@ -1,6 +1,6 @@
 #!/bin/sh -eu
 #
-# Build and publish Docker image to Cdership repo
+# Build and publish Docker image to Codership repo
 #
 # Needs the following parameters:
 #
